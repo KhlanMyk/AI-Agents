@@ -119,7 +119,8 @@ class DentistAIAgent:
         if intent == "greeting":
             return (
                 f"Hi {user}! 🦷 I'm your dentist assistant bot. "
-                "I can help with appointments, prices, services, and basic dental advice."
+                "I can help with appointments, prices, services, and basic dental advice. "
+                "Type 'help' to see all options."
             )
 
         if intent == "emergency":
