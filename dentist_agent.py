@@ -28,6 +28,7 @@ class DentistAIAgent:
     }
 
     HOURS = "Mon-Fri 09:00-18:00, Sat 10:00-14:00, Sun closed"
+    ADDRESS = "123 Maple Street, Suite 4, New York, NY 10001"
 
     INSURANCE_TEXT = (
         "We accept most major insurance plans. "
@@ -84,6 +85,8 @@ class DentistAIAgent:
             return "pricing"
         if any(word in lowered for word in ["hour", "open", "close", "working time"]):
             return "hours"
+        if any(word in lowered for word in ["address", "location", "where", "find you"]):
+            return "location"
         if "insurance" in lowered:
             return "insurance"
         if any(word in lowered for word in ["service", "offer", "do you have", "treatment"]):
@@ -149,6 +152,9 @@ class DentistAIAgent:
 
         if intent == "hours":
             return f"Our clinic hours are: {self.HOURS}."
+
+        if intent == "location":
+            return f"You can find us at: {self.ADDRESS}. We are open {self.HOURS}."
 
         if intent == "insurance":
             return self.INSURANCE_TEXT
