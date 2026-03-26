@@ -183,8 +183,8 @@ class DentistAIAgent:
 
         if intent == "help":
             return (
-                "You can ask me about appointments, prices, services, clinic hours, insurance, "
-                "or symptoms like tooth pain."
+                "You can ask me about appointments (book/confirm/cancel), prices, services, "
+                "clinic hours, insurance, location, contact number, or symptoms like tooth pain."
             )
 
         return (
