@@ -78,6 +78,8 @@ class DentistAIAgent:
 
         if self._detect_emergency(lowered):
             return "emergency"
+        if any(word in lowered for word in ["thanks", "thank you", "thx"]):
+            return "gratitude"
         if "help" in lowered:
             return "help"
         if any(word in lowered for word in ["book", "appointment", "schedule", "visit"]):
@@ -175,6 +177,9 @@ class DentistAIAgent:
                 "and use over-the-counter pain relief if safe for you. "
                 "If pain lasts more than 24-48 hours, book an exam."
             )
+
+        if intent == "gratitude":
+            return "You're welcome! Happy to help with your dental questions anytime."
 
         if intent == "help":
             return (
