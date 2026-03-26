@@ -103,10 +103,11 @@ class DentistAIAgent:
         return "fallback"
 
     def respond(self, message: str) -> str:
-        if not message.strip():
+        clean_message = message.strip()
+        if not clean_message:
             return "Please type a message so I can help you."
 
-        lowered_message = message.lower()
+        lowered_message = clean_message.lower()
 
         if "confirm appointment" in lowered_message:
             if self.state.appointment_requested:
@@ -121,11 +122,11 @@ class DentistAIAgent:
                 return "Your appointment request has been cancelled. Let me know if you need anything else."
             return "You don't have a pending appointment to cancel."
 
-        name = self._extract_name(message)
+        name = self._extract_name(clean_message)
         if name:
             self.state.patient_name = name
 
-        intent = self._intent(message)
+        intent = self._intent(clean_message)
         self.state.last_intent = intent
 
         user = self.state.patient_name or "there"
