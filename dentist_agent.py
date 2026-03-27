@@ -164,6 +164,10 @@ class DentistAIAgent:
             )
 
         if intent == "pricing":
+            lowered = clean_message.lower()
+            for service_name, service_price in self.SERVICES.items():
+                if service_name in lowered:
+                    return f"{service_name.title()} costs {service_price}."
             services = "\n".join([f"- {name.title()}: {price}" for name, price in self.SERVICES.items()])
             return f"Here is our price guide:\n{services}"
 
