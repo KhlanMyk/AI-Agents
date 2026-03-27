@@ -124,6 +124,15 @@ class DentistAIAgent:
                 return "Your appointment request has been cancelled. Let me know if you need anything else."
             return "You don't have a pending appointment to cancel."
 
+        if lowered_message in {"yes", "y"} and self.state.appointment_requested:
+            slot = self._next_available_slot()
+            self.state.appointment_requested = False
+            return f"Great! Your appointment is confirmed for {slot}. Please arrive 10 minutes early."
+
+        if lowered_message in {"no", "n"} and self.state.appointment_requested:
+            self.state.appointment_requested = False
+            return "No problem. I cancelled the pending appointment request."
+
         name = self._extract_name(clean_message)
         if name:
             self.state.patient_name = name
