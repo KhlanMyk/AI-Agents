@@ -78,6 +78,8 @@ class DentistAIAgent:
 
         if self._detect_emergency(lowered):
             return "emergency"
+        if any(word in lowered for word in ["bye", "goodbye", "see you"]):
+            return "goodbye"
         if any(word in lowered for word in ["thanks", "thank you", "thx"]):
             return "gratitude"
         if "help" in lowered:
@@ -181,6 +183,9 @@ class DentistAIAgent:
 
         if intent == "gratitude":
             return "You're welcome! Happy to help with your dental questions anytime."
+
+        if intent == "goodbye":
+            return "Goodbye! If you need help later, just message me again."
 
         if intent == "help":
             return (
