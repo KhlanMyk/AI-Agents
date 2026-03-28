@@ -148,6 +148,10 @@ class DentistAIAgent:
             self.state.appointment_requested = False
             return "No problem. I cancelled the pending appointment request."
 
+        if lowered_message in {"reset", "clear chat"}:
+            self.state = ChatState()
+            return "Chat state cleared. We can start fresh."
+
         name = self._extract_name(clean_message)
         if name:
             self.state.patient_name = name
