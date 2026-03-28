@@ -47,6 +47,15 @@ class DentistAIAgent:
         "pus",
     }
 
+    SYMPTOM_KEYWORDS = {
+        "toothache",
+        "pain",
+        "sensitive",
+        "gum",
+        "swelling",
+        "bleeding",
+    }
+
     def __init__(self) -> None:
         self.state = ChatState()
 
@@ -110,6 +119,10 @@ class DentistAIAgent:
             return "Please type a message so I can help you."
 
         lowered_message = clean_message.lower()
+
+        for symptom in self.SYMPTOM_KEYWORDS:
+            if symptom in lowered_message and symptom not in self.state.symptoms:
+                self.state.symptoms.append(symptom)
 
         if "confirm appointment" in lowered_message:
             if self.state.appointment_requested:
