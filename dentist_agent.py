@@ -91,6 +91,8 @@ class DentistAIAgent:
             return "goodbye"
         if any(word in lowered for word in ["thanks", "thank you", "thx"]):
             return "gratitude"
+        if any(word in lowered for word in ["summary", "status"]):
+            return "summary"
         if "help" in lowered:
             return "help"
         if any(word in lowered for word in ["book", "appointment", "schedule", "visit"]):
@@ -217,6 +219,15 @@ class DentistAIAgent:
             return (
                 "You can ask me about appointments (book/confirm/cancel), prices, services, "
                 "clinic hours, insurance, location, contact number, or symptoms like tooth pain."
+            )
+
+        if intent == "summary":
+            name_text = self.state.patient_name or "unknown"
+            symptoms_text = ", ".join(self.state.symptoms) if self.state.symptoms else "none"
+            pending = "yes" if self.state.appointment_requested else "no"
+            return (
+                f"Patient: {name_text}. Pending appointment: {pending}. "
+                f"Discussed symptoms: {symptoms_text}."
             )
 
         return (
