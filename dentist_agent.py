@@ -92,6 +92,13 @@ class DentistAIAgent:
         slot = dt.replace(hour=11, minute=0, second=0, microsecond=0)
         return slot.strftime("%A, %d %b at %H:%M")
 
+    def _available_slots(self) -> List[str]:
+        base = datetime.now() + timedelta(days=1)
+        slot1 = base.replace(hour=11, minute=0, second=0, microsecond=0)
+        slot2 = base.replace(hour=15, minute=0, second=0, microsecond=0)
+        fmt = "%A, %d %b at %H:%M"
+        return [slot1.strftime(fmt), slot2.strftime(fmt)]
+
     def _intent(self, text: str) -> str:
         lowered = text.lower()
 
@@ -188,10 +195,10 @@ class DentistAIAgent:
 
         if intent == "appointment":
             self.state.appointment_requested = True
-            slot = self._next_available_slot()
+            slots = self._available_slots()
             return (
-                f"Sure, {user}. I can offer the next available slot: {slot}. "
-                "Reply with 'confirm appointment' to book it."
+                f"Sure, {user}. Available slots: 1) {slots[0]}  2) {slots[1]}. "
+                "Reply with 'confirm appointment' to book the first one."
             )
 
         if intent == "pricing":
