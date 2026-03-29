@@ -108,6 +108,8 @@ class DentistAIAgent:
             return "goodbye"
         if any(word in lowered for word in ["tip", "advice", "recommend"]):
             return "tip"
+        if any(word in lowered for word in ["referral", "long is", "how long", "first visit", "x-ray", "faq"]):
+            return "faq"
         if any(word in lowered for word in ["thanks", "thank you", "thx"]):
             return "gratitude"
         if any(word in lowered for word in ["summary", "status"]):
@@ -234,6 +236,18 @@ class DentistAIAgent:
 
         if intent == "tip":
             return "💡 Dental tip: " + random.choice(self.TIPS)
+
+        if intent == "faq":
+            lowered = clean_message.lower()
+            if "referral" in lowered:
+                return "No referral is needed. You can book directly."
+            if "how long" in lowered or "long is" in lowered:
+                return "A standard checkup takes about 45-60 minutes. Procedures may take longer."
+            if "x-ray" in lowered:
+                return "We take X-rays on your first visit and then as needed, usually once a year."
+            if "first visit" in lowered:
+                return "On your first visit please bring photo ID, insurance card, and any previous dental records."
+            return "Common questions: no referral needed, checkup ~45 min, X-rays once a year."
 
         if intent == "gratitude":
             return "You're welcome! Happy to help with your dental questions anytime."
