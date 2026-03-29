@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List
 import re
+import random
 
 
 @dataclass
@@ -35,6 +36,15 @@ class DentistAIAgent:
         "We accept most major insurance plans. "
         "Please bring your insurance card, photo ID, and previous dental records if available."
     )
+
+    TIPS: List[str] = [
+        "Brush for at least 2 minutes twice a day.",
+        "Floss daily to prevent gum disease.",
+        "Replace your toothbrush every 3 months.",
+        "Limit sugary drinks — they cause enamel erosion.",
+        "Use a fluoride toothpaste for stronger enamel.",
+        "Drink plenty of water — it helps wash away food particles.",
+    ]
 
     EMERGENCY_KEYWORDS = {
         "bleeding",
@@ -89,6 +99,8 @@ class DentistAIAgent:
             return "emergency"
         if any(word in lowered for word in ["bye", "goodbye", "see you"]):
             return "goodbye"
+        if any(word in lowered for word in ["tip", "advice", "recommend"]):
+            return "tip"
         if any(word in lowered for word in ["thanks", "thank you", "thx"]):
             return "gratitude"
         if any(word in lowered for word in ["summary", "status"]):
@@ -212,6 +224,9 @@ class DentistAIAgent:
                 "and use over-the-counter pain relief if safe for you. "
                 "If pain lasts more than 24-48 hours, book an exam."
             )
+
+        if intent == "tip":
+            return "💡 Dental tip: " + random.choice(self.TIPS)
 
         if intent == "gratitude":
             return "You're welcome! Happy to help with your dental questions anytime."
