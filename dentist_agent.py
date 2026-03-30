@@ -125,6 +125,8 @@ class DentistAIAgent:
             return "hours"
         if any(word in lowered for word in ["payment", "pay", "card", "cash"]):
             return "payment"
+        if any(word in lowered for word in ["kid", "child", "children", "pediatric"]):
+            return "kids"
         if any(word in lowered for word in ["phone", "contact", "call", "number"]):
             return "contact"
         if any(word in lowered for word in ["address", "location", "where", "find you"]):
@@ -219,6 +221,9 @@ class DentistAIAgent:
 
         if intent == "payment":
             return f"We accept {self.PAYMENT_METHODS}."
+
+        if intent == "kids":
+            return "Yes, we see children ages 5+ for checkups, cleanings, and basic treatments."
 
         if intent == "contact":
             return f"You can call us at {self.PHONE} or visit us at {self.ADDRESS}."
