@@ -12,6 +12,7 @@ class ChatState:
     patient_name: str | None = None
     symptoms: List[str] = field(default_factory=list)
     appointment_requested: bool = False
+    offered_slots: List[str] = field(default_factory=list)
     last_intent: str | None = None
 
 
@@ -154,24 +155,36 @@ class DentistAIAgent:
 
         if "confirm appointment" in lowered_message:
             if self.state.appointment_requested:
-                slot = self._next_available_slot()
+                slot = self.state.offered_slots[0] if self.state.offered_slots else self._next_available_slot()
                 self.state.appointment_requested = False
+                self.state.offered_slots = []
                 return f"Great! Your appointment is confirmed for {slot}. Please arrive 10 minutes early."
             return "I can help with that—please ask to book an appointment first."
 
         if "cancel appointment" in lowered_message:
             if self.state.appointment_requested:
                 self.state.appointment_requested = False
+                self.state.offered_slots = []
                 return "Your appointment request has been cancelled. Let me know if you need anything else."
             return "You don't have a pending appointment to cancel."
 
+        if lowered_message in {"2", "slot 2", "second slot"} and self.state.appointment_requested:
+            if len(self.state.offered_slots) > 1:
+                slot = self.state.offered_slots[1]
+                self.state.appointment_requested = False
+                self.state.offered_slots = []
+                return f"Done! Your appointment is confirmed for {slot}. Please arrive 10 minutes early."
+            return "I only have one slot available right now."
+
         if lowered_message in {"yes", "y"} and self.state.appointment_requested:
-            slot = self._next_available_slot()
+            slot = self.state.offered_slots[0] if self.state.offered_slots else self._next_available_slot()
             self.state.appointment_requested = False
+            self.state.offered_slots = []
             return f"Great! Your appointment is confirmed for {slot}. Please arrive 10 minutes early."
 
         if lowered_message in {"no", "n"} and self.state.appointment_requested:
             self.state.appointment_requested = False
+            self.state.offered_slots = []
             return "No problem. I cancelled the pending appointment request."
 
         if lowered_message in {"reset", "clear chat"}:
@@ -203,9 +216,10 @@ class DentistAIAgent:
         if intent == "appointment":
             self.state.appointment_requested = True
             slots = self._available_slots()
+            self.state.offered_slots = slots
             return (
                 f"Sure, {user}. Available slots: 1) {slots[0]}  2) {slots[1]}. "
-                "Reply with 'confirm appointment' to book the first one."
+                "Reply with 'confirm appointment' for slot 1 or type '2' for slot 2."
             )
 
         if intent == "pricing":
