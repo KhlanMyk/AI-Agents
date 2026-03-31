@@ -120,6 +120,8 @@ class DentistAIAgent:
             return "help"
         if any(word in lowered for word in ["book", "appointment", "schedule", "visit"]):
             return "appointment"
+        if "waitlist" in lowered:
+            return "waitlist"
         if any(word in lowered for word in ["price", "cost", "how much", "fee"]):
             return "pricing"
         if any(word in lowered for word in ["hour", "open", "close", "working time"]):
@@ -220,6 +222,12 @@ class DentistAIAgent:
             return (
                 f"Sure, {user}. Available slots: 1) {slots[0]}  2) {slots[1]}. "
                 "Reply with 'confirm appointment' for slot 1 or type '2' for slot 2."
+            )
+
+        if intent == "waitlist":
+            return (
+                "Got it. I can add you to the waitlist and notify you if an earlier slot opens up. "
+                "Please share your preferred day and time window."
             )
 
         if intent == "pricing":
