@@ -178,6 +178,12 @@ class DentistAIAgent:
                 return f"Done! Your appointment is confirmed for {slot}. Please arrive 10 minutes early."
             return "I only have one slot available right now."
 
+        if lowered_message in {"1", "slot 1", "first slot"} and self.state.appointment_requested:
+            slot = self.state.offered_slots[0] if self.state.offered_slots else self._next_available_slot()
+            self.state.appointment_requested = False
+            self.state.offered_slots = []
+            return f"Done! Your appointment is confirmed for {slot}. Please arrive 10 minutes early."
+
         if lowered_message in {"yes", "y"} and self.state.appointment_requested:
             slot = self.state.offered_slots[0] if self.state.offered_slots else self._next_available_slot()
             self.state.appointment_requested = False
