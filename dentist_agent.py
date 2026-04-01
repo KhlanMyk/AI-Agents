@@ -33,6 +33,11 @@ class DentistAIAgent:
     ADDRESS = "123 Maple Street, Suite 4, New York, NY 10001"
     PHONE = "+1 (212) 555-0198"
     PAYMENT_METHODS = "cash, credit/debit cards, Apple Pay, and Google Pay"
+    ABOUT = (
+        "Maple Dental Clinic was founded in 2010. "
+        "We have a team of 6 experienced dentists and offer a full range of dental services "
+        "in a comfortable, modern environment."
+    )
 
     INSURANCE_TEXT = (
         "We accept most major insurance plans. "
@@ -122,6 +127,8 @@ class DentistAIAgent:
             return "appointment"
         if "waitlist" in lowered:
             return "waitlist"
+        if any(word in lowered for word in ["about", "clinic", "who are you", "tell me about"]):
+            return "about"
         if any(word in lowered for word in ["price", "cost", "how much", "fee"]):
             return "pricing"
         if any(word in lowered for word in ["hour", "open", "close", "working time"]):
@@ -235,6 +242,9 @@ class DentistAIAgent:
                 "Got it. I can add you to the waitlist and notify you if an earlier slot opens up. "
                 "Please share your preferred day and time window."
             )
+
+        if intent == "about":
+            return self.ABOUT
 
         if intent == "pricing":
             lowered = clean_message.lower()
