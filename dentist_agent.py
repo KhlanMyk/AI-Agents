@@ -129,6 +129,8 @@ class DentistAIAgent:
             return "waitlist"
         if any(word in lowered for word in ["about", "clinic", "who are you", "tell me about"]):
             return "about"
+        if any(word in lowered for word in ["feedback", "review", "rate", "rating"]):
+            return "feedback"
         if any(word in lowered for word in ["price", "cost", "how much", "fee"]):
             return "pricing"
         if any(word in lowered for word in ["hour", "open", "close", "working time"]):
@@ -245,6 +247,12 @@ class DentistAIAgent:
 
         if intent == "about":
             return self.ABOUT
+
+        if intent == "feedback":
+            return (
+                "We appreciate your feedback! You can leave a review on Google Maps or "
+                "call us at " + self.PHONE + " to share your thoughts directly."
+            )
 
         if intent == "pricing":
             lowered = clean_message.lower()
