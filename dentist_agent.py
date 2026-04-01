@@ -131,6 +131,8 @@ class DentistAIAgent:
             return "about"
         if any(word in lowered for word in ["feedback", "review", "rate", "rating"]):
             return "feedback"
+        if any(word in lowered for word in ["prepare", "bring", "what to", "before appointment"]):
+            return "prepare"
         if any(word in lowered for word in ["price", "cost", "how much", "fee"]):
             return "pricing"
         if any(word in lowered for word in ["hour", "open", "close", "working time"]):
@@ -252,6 +254,13 @@ class DentistAIAgent:
             return (
                 "We appreciate your feedback! You can leave a review on Google Maps or "
                 "call us at " + self.PHONE + " to share your thoughts directly."
+            )
+
+        if intent == "prepare":
+            return (
+                "Before your appointment please: bring a photo ID and insurance card, "
+                "arrive 10 minutes early, and avoid eating a heavy meal right before. "
+                "Let us know about any medications you are taking."
             )
 
         if intent == "pricing":
