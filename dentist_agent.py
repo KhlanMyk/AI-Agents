@@ -123,6 +123,8 @@ class DentistAIAgent:
             return "summary"
         if "help" in lowered:
             return "help"
+        if any(word in lowered for word in ["prepare", "bring", "what to", "before appointment"]):
+            return "prepare"
         if any(word in lowered for word in ["book", "appointment", "schedule", "visit"]):
             return "appointment"
         if "waitlist" in lowered:
@@ -131,8 +133,6 @@ class DentistAIAgent:
             return "about"
         if any(word in lowered for word in ["feedback", "review", "rate", "rating"]):
             return "feedback"
-        if any(word in lowered for word in ["prepare", "bring", "what to", "before appointment"]):
-            return "prepare"
         if any(word in lowered for word in ["price", "cost", "how much", "fee"]):
             return "pricing"
         if any(word in lowered for word in ["hour", "open", "close", "working time"]):
