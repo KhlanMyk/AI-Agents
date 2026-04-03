@@ -33,6 +33,7 @@ class DentistAIAgent:
     ADDRESS = "123 Maple Street, Suite 4, New York, NY 10001"
     PHONE = "+1 (212) 555-0198"
     PAYMENT_METHODS = "cash, credit/debit cards, Apple Pay, and Google Pay"
+    PROMO = "New patients get 20% off their first cleaning. Ask us for details!"
     ABOUT = (
         "Maple Dental Clinic was founded in 2010. "
         "We have a team of 6 experienced dentists and offer a full range of dental services "
@@ -141,6 +142,8 @@ class DentistAIAgent:
             return "weekend"
         if any(word in lowered for word in ["reminder", "don't forget", "reminder for"]):
             return "reminder"
+        if any(word in lowered for word in ["promo", "discount", "deal", "special"]):
+            return "promo"
         if any(word in lowered for word in ["payment", "pay", "card", "cash"]):
             return "payment"
         if "parking" in lowered:
@@ -288,6 +291,9 @@ class DentistAIAgent:
                 "Reminders: Bring photo ID and insurance card, arrive 10 minutes early, "
                 "avoid heavy meals before your appointment. Call if you need to reschedule."
             )
+
+        if intent == "promo":
+            return self.PROMO
 
         if intent == "payment":
             return f"We accept {self.PAYMENT_METHODS}."
