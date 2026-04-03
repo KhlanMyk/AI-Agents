@@ -139,6 +139,8 @@ class DentistAIAgent:
             return "hours"
         if any(word in lowered for word in ["weekend", "saturday", "sunday"]):
             return "weekend"
+        if any(word in lowered for word in ["reminder", "don't forget", "reminder for"]):
+            return "reminder"
         if any(word in lowered for word in ["payment", "pay", "card", "cash"]):
             return "payment"
         if "parking" in lowered:
@@ -280,6 +282,12 @@ class DentistAIAgent:
 
         if intent == "weekend":
             return "We are open on Saturday from 10:00 to 14:00 and closed on Sunday."
+
+        if intent == "reminder":
+            return (
+                "Reminders: Bring photo ID and insurance card, arrive 10 minutes early, "
+                "avoid heavy meals before your appointment. Call if you need to reschedule."
+            )
 
         if intent == "payment":
             return f"We accept {self.PAYMENT_METHODS}."
