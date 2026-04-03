@@ -34,6 +34,7 @@ class DentistAIAgent:
     PHONE = "+1 (212) 555-0198"
     PAYMENT_METHODS = "cash, credit/debit cards, Apple Pay, and Google Pay"
     PROMO = "New patients get 20% off their first cleaning. Ask us for details!"
+    TEAM = "Our team includes Dr. Sarah Chen (general dentistry), Dr. James Rodriguez (orthodontics), and 4 other experienced specialists."
     ABOUT = (
         "Maple Dental Clinic was founded in 2010. "
         "We have a team of 6 experienced dentists and offer a full range of dental services "
@@ -144,6 +145,8 @@ class DentistAIAgent:
             return "reminder"
         if any(word in lowered for word in ["promo", "discount", "deal", "special"]):
             return "promo"
+        if any(word in lowered for word in ["staff", "team", "dentist", "doctor"]):
+            return "team"
         if any(word in lowered for word in ["payment", "pay", "card", "cash"]):
             return "payment"
         if "parking" in lowered:
@@ -294,6 +297,9 @@ class DentistAIAgent:
 
         if intent == "promo":
             return self.PROMO
+
+        if intent == "team":
+            return self.TEAM
 
         if intent == "payment":
             return f"We accept {self.PAYMENT_METHODS}."
