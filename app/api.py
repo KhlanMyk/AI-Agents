@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Dict
 from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from app.agent import DentistAIAgent
 
 app = FastAPI(title="Dentist Assistant API", version="0.1.0")
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
 class ChatRequest(BaseModel):
@@ -37,6 +43,11 @@ def get_agent(session_id: str) -> DentistAIAgent:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request):
+    return templates.TemplateResponse(request=request, name="chat.html")
 
 
 @app.post("/chat", response_model=ChatResponse)
