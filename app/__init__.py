@@ -1,0 +1,1 @@
+"""Dentist assistant application package."""
