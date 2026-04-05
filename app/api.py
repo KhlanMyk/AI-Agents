@@ -4,14 +4,15 @@ from pathlib import Path
 from typing import Dict
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from app.agent import DentistAIAgent
+from app.config import ADMIN_TOKEN
 from app.db import init_db
-from app.repository import create_appointment, save_lead
+from app.repository import create_appointment, list_appointments, list_leads, save_lead
 
 app = FastAPI(title="Dentist Assistant API", version="0.1.0")
 
@@ -88,3 +89,42 @@ def reset(payload: ResetRequest) -> dict[str, str]:
     agent = get_agent(payload.session_id)
     agent.reset()
     return {"status": "reset"}
+
+
+def _check_admin_token(x_admin_token: str | None) -> None:
+    if not x_admin_token or x_admin_token != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="invalid admin token")
+
+
+@app.get("/admin/leads")
+def admin_leads(x_admin_token: str | None = Header(default=None)) -> list[dict[str, str]]:
+    _check_admin_token(x_admin_token)
+    rows = list_leads()
+    return [
+        {
+            "id": str(r.id),
+            "session_id": r.session_id,
+            "name": r.name,
+            "message": r.message,
+            "intent": r.intent,
+            "created_at": r.created_at.isoformat(),
+        }
+        for r in rows
+    ]
+
+
+@app.get("/admin/appointments")
+def admin_appointments(x_admin_token: str | None = Header(default=None)) -> list[dict[str, str]]:
+    _check_admin_token(x_admin_token)
+    rows = list_appointments()
+    return [
+        {
+            "id": str(r.id),
+            "session_id": r.session_id,
+            "patient_name": r.patient_name,
+            "slot": r.slot,
+            "status": r.status,
+            "created_at": r.created_at.isoformat(),
+        }
+        for r in rows
+    ]
