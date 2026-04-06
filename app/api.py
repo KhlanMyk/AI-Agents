@@ -158,3 +158,14 @@ def admin_appointments(x_admin_token: str | None = Header(default=None)) -> list
         }
         for r in rows
     ]
+
+
+@app.get("/admin/stats")
+def admin_stats(x_admin_token: str | None = Header(default=None)) -> dict[str, int]:
+    _check_admin_token(x_admin_token)
+    leads = list_leads(limit=1000)
+    appts = list_appointments(limit=1000)
+    return {
+        "total_leads": len(leads),
+        "total_appointments": len(appts),
+    }
