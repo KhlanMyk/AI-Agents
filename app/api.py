@@ -3,11 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict
 from uuid import uuid4
+import re
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.agent import DentistAIAgent
 from app.config import ADMIN_TOKEN
@@ -21,8 +22,27 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(min_length=1)
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1, max_length=1500)
     session_id: str | None = None
+
+    @field_validator("message")
+    @classmethod
+    def clean_message(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("message cannot be blank")
+        return cleaned
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        if len(value) > 64 or not re.fullmatch(r"[A-Za-z0-9\-]+", value):
+            raise ValueError("invalid session_id format")
+        return value
 
 
 class ChatResponse(BaseModel):
@@ -32,7 +52,17 @@ class ChatResponse(BaseModel):
 
 
 class ResetRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     session_id: str
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_id(cls, value: str) -> str:
+        cleaned = value.strip()
+        if len(cleaned) > 64 or not re.fullmatch(r"[A-Za-z0-9\-]+", cleaned):
+            raise ValueError("invalid session_id format")
+        return cleaned
 
 
 sessions: Dict[str, DentistAIAgent] = {}
