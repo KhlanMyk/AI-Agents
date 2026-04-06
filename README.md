@@ -1,28 +1,34 @@
-# Basic Dentist AI Agent (Chatbot)
+# Dentist Assistant App
 
-This project is a simple dentist chatbot you can run in the terminal.
+Production-ready starter for a dental clinic assistant:
+- terminal chatbot (`dentist_agent.py`)
+- web chat UI (`/`)
+- REST API (`/chat`, `/reset`, `/admin/*`)
+- SQLite persistence for leads and appointments
 
-## Features
-- Greets patients and stores patient name
-- Answers common clinic questions (hours, services, pricing, insurance)
-- Offers appointment flow (including confirmation)
-- Provides basic tooth pain self-care guidance
-- Detects emergency keywords and advises urgent care
+## Quick start
+1. Install dependencies:
+   - `pip install -r requirements.txt`
+2. Start server:
+   - `python run.py`
+3. Open:
+   - `http://127.0.0.1:8000`
 
-## Run
-1. Open terminal in this folder.
-2. Run:
-   - `python3 dentist_agent.py`
+## API endpoints
+- `GET /health`
+- `POST /chat`
+- `POST /reset`
+- `GET /admin/leads` (requires `x-admin-token`)
+- `GET /admin/appointments` (requires `x-admin-token`)
+- `GET /admin/stats` (requires `x-admin-token`)
 
-Type `exit` to quit.
+## Environment
+Use `.env`:
+- `DATABASE_URL=sqlite:///data/dentist_app.db`
+- `ADMIN_TOKEN=change-me`
 
-## Example questions
-- "Hi, my name is Anna"
-- "What services do you offer?"
-- "How much is cleaning?"
-- "I want to book an appointment"
-- "confirm appointment"
-- "I have swelling and severe pain"
+## Tests
+- Run: `pytest`
 
 ## Important
-This bot is for basic information only and does not replace professional medical diagnosis.
+This bot provides informational assistance and does not replace professional medical diagnosis.
