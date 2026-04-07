@@ -6,7 +6,7 @@ from uuid import uuid4
 import re
 
 from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -19,12 +19,16 @@ from app.session_manager import SessionManager
 from app.chat_history import ChatHistory
 from app.rate_limiter import RateLimiter
 from app.logging_config import get_logger, log_error
+from app.middleware import RequestMetricsMiddleware
 
 app = FastAPI(title="Dentist Assistant API", version="0.1.0")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 logger = get_logger(__name__)
+
+# Register middleware for request/response tracking
+app.add_middleware(RequestMetricsMiddleware)
 
 
 class ChatRequest(BaseModel):
@@ -96,7 +100,10 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         endpoint=request.url.path,
         status_code=exc.status_code,
     )
-    return {"detail": exc.detail}
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
 
 
 def get_agent(session_id: str) -> DentistAIAgent:
