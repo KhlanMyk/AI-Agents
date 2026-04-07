@@ -18,11 +18,13 @@ from app.security import sanitize_input, sanitize_for_sql
 from app.session_manager import SessionManager
 from app.chat_history import ChatHistory
 from app.rate_limiter import RateLimiter
+from app.logging_config import get_logger, log_error
 
 app = FastAPI(title="Dentist Assistant API", version="0.1.0")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+logger = get_logger(__name__)
 
 
 class ChatRequest(BaseModel):
@@ -75,6 +77,18 @@ chat_histories: Dict[str, ChatHistory] = {}
 rate_limiter = RateLimiter(max_requests=30, window_seconds=60)
 
 init_db()
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle HTTP exceptions with logging."""
+    log_error(
+        logger,
+        f"HTTP exception: {exc.detail}",
+        endpoint=request.url.path,
+        status_code=exc.status_code,
+    )
+    return {"detail": exc.detail}
 
 
 def get_agent(session_id: str) -> DentistAIAgent:
