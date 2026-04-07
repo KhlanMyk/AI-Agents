@@ -17,6 +17,7 @@ from app.repository import create_appointment, list_appointments, list_leads, sa
 from app.security import sanitize_input, sanitize_for_sql
 from app.session_manager import SessionManager
 from app.chat_history import ChatHistory
+from app.rate_limiter import RateLimiter
 
 app = FastAPI(title="Dentist Assistant API", version="0.1.0")
 
@@ -71,6 +72,7 @@ class ResetRequest(BaseModel):
 sessions: Dict[str, DentistAIAgent] = {}
 session_mgr = SessionManager(default_ttl_minutes=60)
 chat_histories: Dict[str, ChatHistory] = {}
+rate_limiter = RateLimiter(max_requests=30, window_seconds=60)
 
 init_db()
 
@@ -96,6 +98,14 @@ def index(request: Request):
 @app.post("/chat", response_model=ChatResponse)
 def chat(payload: ChatRequest) -> ChatResponse:
     session_id = payload.session_id or str(uuid4())
+    
+    # Check rate limit
+    if not rate_limiter.is_allowed(session_id):
+        raise HTTPException(
+            status_code=429,
+            detail="rate limit exceeded: max 30 requests per 60 seconds"
+        )
+    
     agent = get_agent(session_id)
     reply = agent.respond(payload.message)
     state = agent.state
