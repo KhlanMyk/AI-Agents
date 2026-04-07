@@ -14,6 +14,9 @@ from app.agent import DentistAIAgent
 from app.config import ADMIN_TOKEN
 from app.db import init_db
 from app.repository import create_appointment, list_appointments, list_leads, save_lead
+from app.security import sanitize_input, sanitize_for_sql
+from app.session_manager import SessionManager
+from app.chat_history import ChatHistory
 
 app = FastAPI(title="Dentist Assistant API", version="0.1.0")
 
@@ -30,7 +33,7 @@ class ChatRequest(BaseModel):
     @field_validator("message")
     @classmethod
     def clean_message(cls, value: str) -> str:
-        cleaned = value.strip()
+        cleaned = sanitize_input(value)
         if not cleaned:
             raise ValueError("message cannot be blank")
         return cleaned
@@ -66,6 +69,8 @@ class ResetRequest(BaseModel):
 
 
 sessions: Dict[str, DentistAIAgent] = {}
+session_mgr = SessionManager(default_ttl_minutes=60)
+chat_histories: Dict[str, ChatHistory] = {}
 
 init_db()
 
@@ -73,6 +78,8 @@ init_db()
 def get_agent(session_id: str) -> DentistAIAgent:
     if session_id not in sessions:
         sessions[session_id] = DentistAIAgent()
+        chat_histories[session_id] = ChatHistory()
+    session_mgr.mark_active(session_id)
     return sessions[session_id]
 
 
@@ -94,11 +101,19 @@ def chat(payload: ChatRequest) -> ChatResponse:
     state = agent.state
     intent = state.last_intent
 
+    # Track in chat history
+    history = chat_histories[session_id]
+    history.add_message("user", payload.message, intent)
+    history.add_message("assistant", reply, intent)
+
+    # Sanitize for SQL storage
+    sanitized_msg = sanitize_for_sql(payload.message)
+    
     save_lead(
         session_id=session_id,
         name=state.patient_name or "",
         contact="",
-        message=payload.message,
+        message=sanitized_msg,
         intent=intent or "unknown",
     )
 
@@ -169,3 +184,13 @@ def admin_stats(x_admin_token: str | None = Header(default=None)) -> dict[str, i
         "total_leads": len(leads),
         "total_appointments": len(appts),
     }
+
+
+@app.get("/export/{session_id}")
+def export_chat_history(session_id: str) -> dict:
+    """Export chat history for a session as JSON."""
+    if session_id not in chat_histories:
+        raise HTTPException(status_code=404, detail="session not found")
+    
+    history = chat_histories[session_id]
+    return history.to_dict()
