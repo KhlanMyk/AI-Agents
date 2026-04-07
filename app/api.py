@@ -52,9 +52,17 @@ class ChatRequest(BaseModel):
 
 
 class ChatResponse(BaseModel):
+    """Response from chat endpoint with AI reply and session tracking."""
     reply: str
     session_id: str
     intent: str | None = None
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response format."""
+    detail: str
+    error_code: str | None = None
+    timestamp: str | None = None
 
 
 class ResetRequest(BaseModel):
@@ -101,16 +109,37 @@ def get_agent(session_id: str) -> DentistAIAgent:
 
 @app.get("/health")
 def health() -> dict[str, str]:
+    """Health check endpoint. Returns 200 if service is running."""
     return {"status": "ok"}
 
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
+    """Serve the web chat interface."""
     return templates.TemplateResponse(request=request, name="chat.html")
 
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(payload: ChatRequest) -> ChatResponse:
+    """
+    Send a chat message and get AI response.
+    
+    - Rate limited to 30 requests per 60 seconds per session
+    - Automatically tracks conversation history
+    - Detects user intent and saves leads to database
+    
+    Args:
+        payload: ChatRequest with message and optional session_id
+        
+    Returns:
+        ChatResponse with AI reply, session_id, and detected intent
+        
+    Status Codes:
+        200: Successful chat response
+        400: Invalid request format
+        422: Validation error (blank message, invalid session_id)
+        429: Rate limit exceeded
+    """
     session_id = payload.session_id or str(uuid4())
     
     # Check rate limit
@@ -155,6 +184,12 @@ def chat(payload: ChatRequest) -> ChatResponse:
 
 @app.post("/reset")
 def reset(payload: ResetRequest) -> dict[str, str]:
+    """
+    Reset chat session state.
+    
+    Clears the conversation history for a session without deleting database records.
+    Useful for starting a fresh conversation with the same session_id.
+    """
     agent = get_agent(payload.session_id)
     agent.reset()
     return {"status": "reset"}
@@ -167,6 +202,12 @@ def _check_admin_token(x_admin_token: str | None) -> None:
 
 @app.get("/admin/leads")
 def admin_leads(x_admin_token: str | None = Header(default=None)) -> list[dict[str, str]]:
+    """
+    List all chat leads (admin endpoint).
+    
+    Requires: x-admin-token header with correct admin token.
+    Returns: List of all captured leads with name, message, intent, and timestamp.
+    """
     _check_admin_token(x_admin_token)
     rows = list_leads()
     return [
@@ -184,6 +225,12 @@ def admin_leads(x_admin_token: str | None = Header(default=None)) -> list[dict[s
 
 @app.get("/admin/appointments")
 def admin_appointments(x_admin_token: str | None = Header(default=None)) -> list[dict[str, str]]:
+    """
+    List all confirmed appointments (admin endpoint).
+    
+    Requires: x-admin-token header with correct admin token.
+    Returns: List of all appointments with patient name, slot, status, and timestamp.
+    """
     _check_admin_token(x_admin_token)
     rows = list_appointments()
     return [
@@ -201,6 +248,12 @@ def admin_appointments(x_admin_token: str | None = Header(default=None)) -> list
 
 @app.get("/admin/stats")
 def admin_stats(x_admin_token: str | None = Header(default=None)) -> dict[str, int]:
+    """
+    Get aggregated chat statistics (admin endpoint).
+    
+    Requires: x-admin-token header with correct admin token.
+    Returns: Total count of leads and appointments.
+    """
     _check_admin_token(x_admin_token)
     leads = list_leads(limit=1000)
     appts = list_appointments(limit=1000)
@@ -212,7 +265,18 @@ def admin_stats(x_admin_token: str | None = Header(default=None)) -> dict[str, i
 
 @app.get("/export/{session_id}")
 def export_chat_history(session_id: str) -> dict:
-    """Export chat history for a session as JSON."""
+    """
+    Export chat conversation history in JSON format.
+    
+    Returns full message history for a session including timestamps and intents.
+    
+    Returns:
+        Dict with message_count, export timestamp, and message list
+        
+    Status Codes:
+        200: Successfully exported history
+        404: Session not found
+    """
     if session_id not in chat_histories:
         raise HTTPException(status_code=404, detail="session not found")
     
