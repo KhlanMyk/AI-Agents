@@ -287,6 +287,83 @@ def admin_stats(x_admin_token: str | None = Header(default=None)) -> dict[str, i
     }
 
 
+class AppointmentStatusUpdate(BaseModel):
+    """Request body for updating appointment status."""
+    model_config = ConfigDict(extra="forbid")
+
+    status: str = Field(description="New status: confirmed | cancelled | no_show | pending")
+
+    @field_validator("status")
+    @classmethod
+    def check_status(cls, v: str) -> str:
+        allowed = {"confirmed", "cancelled", "no_show", "pending"}
+        if v not in allowed:
+            raise ValueError(f"status must be one of: {', '.join(sorted(allowed))}")
+        return v
+
+
+@app.patch("/admin/appointments/{appointment_id}/status")
+def update_appt_status(
+    appointment_id: int,
+    payload: AppointmentStatusUpdate,
+    x_admin_token: str | None = Header(default=None),
+) -> dict[str, str]:
+    """
+    Update appointment status (admin endpoint).
+
+    Allows marking appointments as confirmed, cancelled, no_show, or pending.
+
+    Requires: x-admin-token header with correct admin token.
+    Returns: Updated appointment record.
+
+    Status Codes:
+        200: Status updated successfully
+        401: Unauthorized
+        404: Appointment not found
+        422: Invalid status value
+    """
+    _check_admin_token(x_admin_token)
+    updated = update_appointment_status(appointment_id, payload.status)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="appointment not found")
+    return {
+        "id": str(updated.id),
+        "patient_name": updated.patient_name,
+        "slot": updated.slot,
+        "status": updated.status,
+        "updated": "true",
+    }
+
+
+@app.get("/admin/leads/search")
+def admin_leads_search(
+    x_admin_token: str | None = Header(default=None),
+    intent: str | None = None,
+    name: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, str]]:
+    """
+    Search and filter leads by intent or patient name (admin endpoint).
+
+    Requires: x-admin-token header with correct admin token.
+    Query params: intent (exact match), name (partial match), limit (default 50).
+    Returns: Filtered list of matching leads.
+    """
+    _check_admin_token(x_admin_token)
+    rows = search_leads(intent=intent, name=name, limit=limit)
+    return [
+        {
+            "id": str(r.id),
+            "session_id": r.session_id,
+            "name": r.name,
+            "message": r.message,
+            "intent": r.intent,
+            "created_at": r.created_at.isoformat(),
+        }
+        for r in rows
+    ]
+
+
 @app.get("/export/{session_id}")
 def export_chat_history(session_id: str) -> dict:
     """
