@@ -13,7 +13,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.agent import DentistAIAgent
 from app.config import ADMIN_TOKEN
 from app.db import init_db
-from app.repository import create_appointment, list_appointments, list_leads, save_lead
+from app.repository import (
+    create_appointment,
+    list_appointments,
+    list_leads,
+    save_lead,
+    search_leads,
+    update_appointment_status,
+)
 from app.security import sanitize_input, sanitize_for_sql
 from app.session_manager import SessionManager
 from app.chat_history import ChatHistory
@@ -208,15 +215,20 @@ def _check_admin_token(x_admin_token: str | None) -> None:
 
 
 @app.get("/admin/leads")
-def admin_leads(x_admin_token: str | None = Header(default=None)) -> list[dict[str, str]]:
+def admin_leads(
+    x_admin_token: str | None = Header(default=None),
+    limit: int = 100,
+    offset: int = 0,
+) -> list[dict[str, str]]:
     """
-    List all chat leads (admin endpoint).
-    
+    List chat leads with pagination (admin endpoint).
+
     Requires: x-admin-token header with correct admin token.
-    Returns: List of all captured leads with name, message, intent, and timestamp.
+    Query params: limit (default 100), offset (default 0).
+    Returns: Paginated list of leads with name, message, intent, and timestamp.
     """
     _check_admin_token(x_admin_token)
-    rows = list_leads()
+    rows = list_leads(limit=limit, offset=offset)
     return [
         {
             "id": str(r.id),
@@ -231,15 +243,20 @@ def admin_leads(x_admin_token: str | None = Header(default=None)) -> list[dict[s
 
 
 @app.get("/admin/appointments")
-def admin_appointments(x_admin_token: str | None = Header(default=None)) -> list[dict[str, str]]:
+def admin_appointments(
+    x_admin_token: str | None = Header(default=None),
+    limit: int = 100,
+    offset: int = 0,
+) -> list[dict[str, str]]:
     """
-    List all confirmed appointments (admin endpoint).
-    
+    List appointments with pagination (admin endpoint).
+
     Requires: x-admin-token header with correct admin token.
-    Returns: List of all appointments with patient name, slot, status, and timestamp.
+    Query params: limit (default 100), offset (default 0).
+    Returns: Paginated list of appointments with patient name, slot, status, and timestamp.
     """
     _check_admin_token(x_admin_token)
-    rows = list_appointments()
+    rows = list_appointments(limit=limit, offset=offset)
     return [
         {
             "id": str(r.id),

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import select
 
@@ -23,9 +23,26 @@ def save_lead(session_id: str, name: str, contact: str, message: str, intent: st
         return lead
 
 
-def list_leads(limit: int = 100) -> List[ChatLead]:
+def list_leads(limit: int = 100, offset: int = 0) -> List[ChatLead]:
     with SessionLocal() as db:
-        rows = db.execute(select(ChatLead).order_by(ChatLead.id.desc()).limit(limit)).scalars().all()
+        rows = db.execute(
+            select(ChatLead)
+            .order_by(ChatLead.id.desc())
+            .limit(limit)
+            .offset(offset)
+        ).scalars().all()
+        return list(rows)
+
+
+def search_leads(intent: Optional[str] = None, name: Optional[str] = None, limit: int = 100) -> List[ChatLead]:
+    """Filter leads by intent and/or name (case-insensitive partial match)."""
+    with SessionLocal() as db:
+        stmt = select(ChatLead).order_by(ChatLead.id.desc())
+        if intent:
+            stmt = stmt.where(ChatLead.intent == intent)
+        if name:
+            stmt = stmt.where(ChatLead.name.ilike(f"%{name}%"))
+        rows = db.execute(stmt.limit(limit)).scalars().all()
         return list(rows)
 
 
@@ -44,7 +61,27 @@ def create_appointment(session_id: str, patient_name: str, slot: str, notes: str
         return item
 
 
-def list_appointments(limit: int = 100) -> List[Appointment]:
+def list_appointments(limit: int = 100, offset: int = 0) -> List[Appointment]:
     with SessionLocal() as db:
-        rows = db.execute(select(Appointment).order_by(Appointment.id.desc()).limit(limit)).scalars().all()
+        rows = db.execute(
+            select(Appointment)
+            .order_by(Appointment.id.desc())
+            .limit(limit)
+            .offset(offset)
+        ).scalars().all()
         return list(rows)
+
+
+def update_appointment_status(appointment_id: int, new_status: str) -> Optional[Appointment]:
+    """Update the status of an appointment. Returns updated record or None if not found."""
+    allowed = {"confirmed", "cancelled", "no_show", "pending"}
+    if new_status not in allowed:
+        raise ValueError(f"status must be one of: {', '.join(sorted(allowed))}")
+    with SessionLocal() as db:
+        appt = db.get(Appointment, appointment_id)
+        if appt is None:
+            return None
+        appt.status = new_status
+        db.commit()
+        db.refresh(appt)
+        return appt
