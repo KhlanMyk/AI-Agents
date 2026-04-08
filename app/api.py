@@ -383,3 +383,27 @@ def export_chat_history(session_id: str) -> dict:
     
     history = chat_histories[session_id]
     return history.to_dict()
+
+
+@app.post("/admin/sessions/cleanup")
+def cleanup_sessions(
+    x_admin_token: str | None = Header(default=None),
+) -> dict:
+    """
+    Remove expired in-memory sessions (admin endpoint).
+
+    Frees memory by evicting sessions that have exceeded their TTL (60 min idle).
+    Database records (leads, appointments) are preserved.
+
+    Requires: x-admin-token header with correct admin token.
+    Returns: Count of cleaned sessions and their IDs.
+    """
+    _check_admin_token(x_admin_token)
+    expired_ids = session_mgr.cleanup_expired()
+    for sid in expired_ids:
+        sessions.pop(sid, None)
+        chat_histories.pop(sid, None)
+    return {
+        "cleaned": len(expired_ids),
+        "session_ids": expired_ids,
+    }
