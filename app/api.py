@@ -411,3 +411,43 @@ def cleanup_sessions(
         "cleaned": len(expired_ids),
         "session_ids": expired_ids,
     }
+
+
+@app.get("/remind/{session_id}")
+def appointment_reminder(session_id: str) -> dict:
+    """
+    Get a formatted appointment reminder for a session.
+
+    Returns clinic details and the confirmed appointment slot so the
+    frontend or notification service can display a reminder to the patient.
+
+    Status Codes:
+        200: Reminder returned successfully
+        404: Session not found or no confirmed appointment yet
+    """
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    state = sessions[session_id].state
+    agent = sessions[session_id]
+
+    if not state.confirmed_slot:
+        raise HTTPException(
+            status_code=404,
+            detail="no confirmed appointment found for this session"
+        )
+
+    return {
+        "session_id": session_id,
+        "patient_name": state.patient_name or "Patient",
+        "appointment_slot": state.confirmed_slot,
+        "clinic_name": "Maple Dental Clinic",
+        "clinic_address": agent.ADDRESS,
+        "clinic_phone": agent.PHONE,
+        "clinic_hours": agent.HOURS,
+        "reminder_message": (
+            f"Reminder: your appointment at Maple Dental Clinic is confirmed for "
+            f"{state.confirmed_slot}. Please arrive 10 minutes early and bring "
+            "your photo ID and insurance card."
+        ),
+    }

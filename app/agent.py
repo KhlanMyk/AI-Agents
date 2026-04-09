@@ -13,6 +13,7 @@ class ChatState:
     symptoms: List[str] = field(default_factory=list)
     appointment_requested: bool = False
     offered_slots: List[str] = field(default_factory=list)
+    confirmed_slot: str | None = None
     last_intent: str | None = None
     last_confidence: float | None = None
     last_suggestions: List[str] = field(default_factory=list)
@@ -199,6 +200,7 @@ class DentistAIAgent:
             if self.state.appointment_requested:
                 slot = self.state.offered_slots[0] if self.state.offered_slots else self._next_available_slot()
                 self.state.appointment_requested = False
+                self.state.confirmed_slot = slot
                 self.state.offered_slots = []
                 return f"Great! Your appointment is confirmed for {slot}. Please arrive 10 minutes early."
             return "I can help with that—please ask to book an appointment first."
