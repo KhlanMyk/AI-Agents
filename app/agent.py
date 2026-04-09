@@ -14,6 +14,7 @@ class ChatState:
     appointment_requested: bool = False
     offered_slots: List[str] = field(default_factory=list)
     last_intent: str | None = None
+    last_confidence: float | None = None
 
 
 class DentistAIAgent:
@@ -105,64 +106,59 @@ class DentistAIAgent:
         fmt = "%A, %d %b at %H:%M"
         return [slot1.strftime(fmt), slot2.strftime(fmt)]
 
-    def _intent(self, text: str) -> str:
+    # Maps intent name → (trigger_words, confidence)
+    # Higher confidence = stronger signal (unambiguous keywords)
+    _INTENT_MAP: List[tuple] = [
+        ("emergency",  [],                                                           1.00),
+        ("goodbye",    ["bye", "goodbye", "see you"],                               0.95),
+        ("tip",        ["tip", "advice", "recommend"],                              0.88),
+        ("faq",        ["referral", "long is", "how long", "first visit", "x-ray", "faq"], 0.90),
+        ("gratitude",  ["thanks", "thank you", "thx"],                              0.95),
+        ("summary",    ["summary", "status"],                                        0.92),
+        ("help",       ["help"],                                                      0.85),
+        ("prepare",    ["prepare", "bring", "what to", "before appointment"],        0.88),
+        ("appointment",["book", "appointment", "schedule", "visit"],                0.92),
+        ("waitlist",   ["waitlist"],                                                  0.90),
+        ("about",      ["about", "clinic", "who are you", "tell me about"],          0.85),
+        ("feedback",   ["feedback", "review", "rate", "rating"],                    0.88),
+        ("pricing",    ["price", "cost", "how much", "fee"],                         0.92),
+        ("hours",      ["hour", "open", "close", "working time"],                   0.90),
+        ("weekend",    ["weekend", "saturday", "sunday"],                            0.92),
+        ("reminder",   ["reminder", "don't forget", "reminder for"],                0.88),
+        ("promo",      ["promo", "discount", "deal", "special"],                    0.88),
+        ("team",       ["staff", "team", "dentist", "doctor"],                      0.85),
+        ("payment",    ["payment", "pay", "card", "cash"],                          0.88),
+        ("parking",    ["parking"],                                                   0.90),
+        ("kids",       ["kid", "child", "children", "pediatric"],                   0.90),
+        ("contact",    ["phone", "contact", "call", "number"],                      0.88),
+        ("location",   ["address", "location", "where", "find you"],                0.88),
+        ("insurance",  ["insurance"],                                                 0.92),
+        ("services",   ["service", "offer", "do you have", "treatment"],            0.85),
+        ("symptom",    ["toothache", "pain", "sensitive", "gum"],                   0.85),
+        ("greeting",   ["hello", "hi", "hey"],                                       0.80),
+    ]
+
+    def _intent_with_confidence(self, text: str) -> tuple[str, float]:
+        """Detect intent and return (intent_name, confidence 0.0–1.0)."""
         lowered = text.lower()
 
         if self._detect_emergency(lowered):
-            return "emergency"
-        if any(word in lowered for word in ["bye", "goodbye", "see you"]):
-            return "goodbye"
-        if any(word in lowered for word in ["tip", "advice", "recommend"]):
-            return "tip"
-        if any(word in lowered for word in ["referral", "long is", "how long", "first visit", "x-ray", "faq"]):
-            return "faq"
-        if any(word in lowered for word in ["thanks", "thank you", "thx"]):
-            return "gratitude"
-        if any(word in lowered for word in ["summary", "status"]):
-            return "summary"
-        if "help" in lowered:
-            return "help"
-        if any(word in lowered for word in ["prepare", "bring", "what to", "before appointment"]):
-            return "prepare"
-        if any(word in lowered for word in ["book", "appointment", "schedule", "visit"]):
-            return "appointment"
-        if "waitlist" in lowered:
-            return "waitlist"
-        if any(word in lowered for word in ["about", "clinic", "who are you", "tell me about"]):
-            return "about"
-        if any(word in lowered for word in ["feedback", "review", "rate", "rating"]):
-            return "feedback"
-        if any(word in lowered for word in ["price", "cost", "how much", "fee"]):
-            return "pricing"
-        if any(word in lowered for word in ["hour", "open", "close", "working time"]):
-            return "hours"
-        if any(word in lowered for word in ["weekend", "saturday", "sunday"]):
-            return "weekend"
-        if any(word in lowered for word in ["reminder", "don't forget", "reminder for"]):
-            return "reminder"
-        if any(word in lowered for word in ["promo", "discount", "deal", "special"]):
-            return "promo"
-        if any(word in lowered for word in ["staff", "team", "dentist", "doctor"]):
-            return "team"
-        if any(word in lowered for word in ["payment", "pay", "card", "cash"]):
-            return "payment"
-        if "parking" in lowered:
-            return "parking"
-        if any(word in lowered for word in ["kid", "child", "children", "pediatric"]):
-            return "kids"
-        if any(word in lowered for word in ["phone", "contact", "call", "number"]):
-            return "contact"
-        if any(word in lowered for word in ["address", "location", "where", "find you"]):
-            return "location"
-        if "insurance" in lowered:
-            return "insurance"
-        if any(word in lowered for word in ["service", "offer", "do you have", "treatment"]):
-            return "services"
-        if any(word in lowered for word in ["toothache", "pain", "sensitive", "gum"]):
-            return "symptom"
-        if any(word in lowered for word in ["hello", "hi", "hey"]):
-            return "greeting"
-        return "fallback"
+            return "emergency", 1.00
+
+        for intent_name, keywords, confidence in self._INTENT_MAP:
+            if intent_name == "emergency":
+                continue
+            if any(word in lowered for word in keywords):
+                # Boost confidence if multiple keywords match
+                matched = sum(1 for w in keywords if w in lowered)
+                boosted = min(1.0, confidence + 0.03 * (matched - 1))
+                return intent_name, round(boosted, 2)
+
+        return "fallback", 0.30
+
+    def _intent(self, text: str) -> str:
+        intent, _ = self._intent_with_confidence(text)
+        return intent
 
     def respond(self, message: str) -> str:
         clean_message = message.strip()
@@ -191,8 +187,9 @@ class DentistAIAgent:
         if name:
             self.state.patient_name = name
 
-        intent = self._intent(clean_message)
+        intent, confidence = self._intent_with_confidence(clean_message)
         self.state.last_intent = intent
+        self.state.last_confidence = confidence
         user = self.state.patient_name or "there"
 
         if intent == "greeting":
