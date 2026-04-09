@@ -18,6 +18,19 @@ class ChatState:
     last_confidence: float | None = None
     last_suggestions: List[str] = field(default_factory=list)
 
+    def add_symptom(self, symptom: str) -> None:
+        """Add symptom if not already recorded (deduplicates)."""
+        if symptom not in self.symptoms:
+            self.symptoms.append(symptom)
+
+    def symptom_summary(self) -> dict:
+        """Return a structured symptom summary for reporting."""
+        return {
+            "count": len(self.symptoms),
+            "symptoms": list(self.symptoms),
+            "has_symptoms": len(self.symptoms) > 0,
+        }
+
 
 class DentistAIAgent:
     SERVICES: Dict[str, str] = {
@@ -72,6 +85,13 @@ class DentistAIAgent:
         "gum",
         "swelling",
         "bleeding",
+        "cracked",
+        "broken",
+        "loose",
+        "cavity",
+        "abscess",
+        "sore",
+        "ache",
     }
 
     def __init__(self) -> None:
@@ -193,8 +213,8 @@ class DentistAIAgent:
         lowered_message = clean_message.lower()
 
         for symptom in self.SYMPTOM_KEYWORDS:
-            if symptom in lowered_message and symptom not in self.state.symptoms:
-                self.state.symptoms.append(symptom)
+            if symptom in lowered_message:
+                self.state.add_symptom(symptom)
 
         if "confirm appointment" in lowered_message:
             if self.state.appointment_requested:

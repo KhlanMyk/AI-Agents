@@ -451,3 +451,33 @@ def appointment_reminder(session_id: str) -> dict:
             "your photo ID and insurance card."
         ),
     }
+
+
+@app.get("/session/{session_id}/summary")
+def session_summary(session_id: str) -> dict:
+    """
+    Return a structured summary of the current session state.
+
+    Includes patient name, symptom report, appointment status, last intent
+    with confidence score, and message count from chat history.
+
+    Status Codes:
+        200: Summary returned successfully
+        404: Session not found
+    """
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    state = sessions[session_id].state
+    history = chat_histories.get(session_id)
+
+    return {
+        "session_id": session_id,
+        "patient_name": state.patient_name,
+        "symptoms": state.symptom_summary(),
+        "appointment_requested": state.appointment_requested,
+        "confirmed_slot": state.confirmed_slot,
+        "last_intent": state.last_intent,
+        "last_confidence": state.last_confidence,
+        "message_count": len(history.messages) if history else 0,
+    }
