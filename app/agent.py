@@ -15,6 +15,7 @@ class ChatState:
     offered_slots: List[str] = field(default_factory=list)
     last_intent: str | None = None
     last_confidence: float | None = None
+    last_suggestions: List[str] = field(default_factory=list)
 
 
 class DentistAIAgent:
@@ -160,6 +161,29 @@ class DentistAIAgent:
         intent, _ = self._intent_with_confidence(text)
         return intent
 
+    def _suggest_topics(self, text: str, top_n: int = 3) -> List[str]:
+        """
+        For a fallback message, compute keyword-overlap scores and return
+        the top_n most likely topic names to guide the user.
+        """
+        lowered = text.lower()
+        words = set(re.split(r'\W+', lowered))
+        scores: Dict[str, int] = {}
+        for intent_name, keywords, _ in self._INTENT_MAP:
+            if intent_name in ("emergency", "fallback"):
+                continue
+            score = sum(
+                1
+                for kw in keywords
+                if any(w in kw or kw in w for w in words if len(w) >= 3)
+            )
+            if score > 0:
+                scores[intent_name] = score
+
+        # Sort by score descending, return top_n names
+        ranked = sorted(scores, key=lambda k: scores[k], reverse=True)
+        return ranked[:top_n] if ranked else ["appointments", "pricing", "services"]
+
     def respond(self, message: str) -> str:
         clean_message = message.strip()
         if not clean_message:
@@ -190,6 +214,7 @@ class DentistAIAgent:
         intent, confidence = self._intent_with_confidence(clean_message)
         self.state.last_intent = intent
         self.state.last_confidence = confidence
+        self.state.last_suggestions = []
         user = self.state.patient_name or "there"
 
         if intent == "greeting":
@@ -274,7 +299,11 @@ class DentistAIAgent:
                 "seek urgent in-person care now."
             )
 
+        # Fallback: suggest relevant topics based on partial keyword match
+        suggestions = self._suggest_topics(clean_message)
+        self.state.last_suggestions = suggestions
+        hint = ", ".join(suggestions)
         return (
-            "I didn't fully catch that. You can ask me about: appointments, prices, services, hours, "
-            "insurance, or tooth pain."
+            f"I didn't fully catch that. Based on your message, you might be asking about: {hint}. "
+            "Type 'help' to see all available topics."
         )

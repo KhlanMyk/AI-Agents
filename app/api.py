@@ -68,6 +68,7 @@ class ChatResponse(BaseModel):
     session_id: str
     intent: str | None = None
     confidence: float | None = None
+    suggestions: list[str] | None = None
 
 
 class ErrorResponse(BaseModel):
@@ -169,6 +170,7 @@ def chat(payload: ChatRequest) -> ChatResponse:
     state = agent.state
     intent = state.last_intent
     confidence = state.last_confidence
+    suggestions = state.last_suggestions or None
 
     # Track in chat history
     history = chat_histories[session_id]
@@ -195,7 +197,7 @@ def chat(payload: ChatRequest) -> ChatResponse:
             notes="auto-saved from chat",
         )
 
-    return ChatResponse(reply=reply, session_id=session_id, intent=intent, confidence=confidence)
+    return ChatResponse(reply=reply, session_id=session_id, intent=intent, confidence=confidence, suggestions=suggestions)
 
 
 @app.post("/reset")
