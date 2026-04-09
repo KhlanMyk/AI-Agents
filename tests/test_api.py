@@ -130,3 +130,86 @@ def test_export_unknown_session_returns_404() -> None:
     client = TestClient(app)
     resp = client.get("/export/totally-unknown-session-xyz")
     assert resp.status_code == 404
+
+
+# ── April 9 tests ──────────────────────────────────────────────────────────
+
+
+def test_chat_response_includes_confidence() -> None:
+    """Every chat response includes a non-null confidence score 0–1."""
+    client = TestClient(app)
+    resp = client.post("/chat", json={"message": "hello"})
+    body = resp.json()
+    assert "confidence" in body
+    assert body["confidence"] is not None
+    assert 0.0 <= body["confidence"] <= 1.0
+
+
+def test_high_confidence_on_clear_intent() -> None:
+    """Unambiguous messages like 'what are your prices?' get confidence >= 0.88."""
+    client = TestClient(app)
+    resp = client.post("/chat", json={"message": "what is the price for cleaning?"})
+    assert resp.json()["confidence"] >= 0.88
+
+
+def test_fallback_returns_suggestions() -> None:
+    """Gibberish message with fallback intent includes a non-empty suggestions list."""
+    client = TestClient(app)
+    resp = client.post("/chat", json={"message": "zzz bloop quux"})
+    body = resp.json()
+    assert body["intent"] == "fallback"
+    # suggestions should be a list (may be empty or filled)
+    assert "suggestions" in body
+
+
+def test_reminder_after_confirmed_appointment() -> None:
+    """Reminder endpoint returns patient details after appointment confirmation."""
+    client = TestClient(app)
+    r1 = client.post("/chat", json={"message": "hi, my name is Alice"})
+    sid = r1.json()["session_id"]
+    client.post("/chat", json={"message": "book appointment", "session_id": sid})
+    client.post("/chat", json={"message": "confirm appointment", "session_id": sid})
+
+    rem = client.get(f"/remind/{sid}")
+    assert rem.status_code == 200
+    body = rem.json()
+    assert body["patient_name"] == "Alice"
+    assert "appointment_slot" in body
+    assert "clinic_address" in body
+    assert "reminder_message" in body
+
+
+def test_reminder_404_without_appointment() -> None:
+    """Reminder returns 404 when no appointment has been confirmed."""
+    client = TestClient(app)
+    r = client.post("/chat", json={"message": "hello"})
+    sid = r.json()["session_id"]
+    resp = client.get(f"/remind/{sid}")
+    assert resp.status_code == 404
+
+
+def test_session_summary_tracks_symptoms() -> None:
+    """Session summary endpoint correctly accumulates detected symptoms."""
+    client = TestClient(app)
+    r = client.post("/chat", json={"message": "I have tooth pain and bleeding gums"})
+    sid = r.json()["session_id"]
+
+    summary = client.get(f"/session/{sid}/summary")
+    assert summary.status_code == 200
+    body = summary.json()
+    assert body["symptoms"]["has_symptoms"] is True
+    assert body["symptoms"]["count"] >= 1
+    assert "pain" in body["symptoms"]["symptoms"] or "bleeding" in body["symptoms"]["symptoms"]
+
+
+def test_session_summary_includes_intent_and_confidence() -> None:
+    """Session summary includes last intent and confidence score."""
+    client = TestClient(app)
+    r = client.post("/chat", json={"message": "what are your hours?"})
+    sid = r.json()["session_id"]
+
+    summary = client.get(f"/session/{sid}/summary")
+    body = summary.json()
+    assert body["last_intent"] == "hours"
+    assert body["last_confidence"] is not None
+    assert body["message_count"] >= 2
