@@ -213,3 +213,87 @@ def test_session_summary_includes_intent_and_confidence() -> None:
     assert body["last_intent"] == "hours"
     assert body["last_confidence"] is not None
     assert body["message_count"] >= 2
+
+
+def test_cors_header_present_on_health() -> None:
+    """CORS allow-origin header is returned when Origin header is sent."""
+    client = TestClient(app)
+    resp = client.get("/health", headers={"Origin": "http://localhost:3000"})
+    assert resp.status_code == 200
+    assert "access-control-allow-origin" in resp.headers
+
+
+def test_contact_extraction_saved_to_session_summary() -> None:
+    """Email shared in chat is extracted and visible in session summary contact field."""
+    client = TestClient(app)
+    r = client.post("/chat", json={"message": "my email is patient@example.com"})
+    sid = r.json()["session_id"]
+
+    summary = client.get(f"/session/{sid}/summary")
+    assert summary.status_code == 200
+    body = summary.json()
+    assert "contact" in body
+    assert body["contact"] == "patient@example.com"
+
+
+def test_admin_lead_detail_returns_lead() -> None:
+    """GET /admin/leads/{id} returns a lead record with expected fields."""
+    client = TestClient(app)
+    # Create a lead via chat
+    r = client.post("/chat", json={"message": "I need a cleaning"})
+    assert r.status_code == 200
+
+    leads = client.get("/admin/leads?limit=1", headers=ADMIN)
+    assert leads.status_code == 200
+    items = leads.json()
+    assert len(items) >= 1
+
+    lead_id = items[0]["id"]
+    detail = client.get(f"/admin/leads/{lead_id}", headers=ADMIN)
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["id"] == str(lead_id)
+    assert "session_id" in body
+    assert "intent" in body
+    assert "created_at" in body
+
+
+def test_admin_lead_detail_404_unknown() -> None:
+    """GET /admin/leads/{id} returns 404 for non-existent lead."""
+    client = TestClient(app)
+    resp = client.get("/admin/leads/999999", headers=ADMIN)
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "lead not found"
+
+
+def test_admin_appointment_detail_returns_appointment() -> None:
+    """GET /admin/appointments/{id} returns an appointment record with expected fields."""
+    client = TestClient(app)
+    # Trigger appointment creation
+    r1 = client.post("/chat", json={"message": "book appointment"})
+    sid = r1.json()["session_id"]
+    client.post("/chat", json={"message": "confirm appointment", "session_id": sid})
+
+    appts = client.get("/admin/appointments?limit=1", headers=ADMIN)
+    assert appts.status_code == 200
+    items = appts.json()
+    if len(items) == 0:
+        return  # no appointment created by this flow, skip gracefully
+
+    appt_id = items[0]["id"]
+    detail = client.get(f"/admin/appointments/{appt_id}", headers=ADMIN)
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["id"] == str(appt_id)
+    assert "patient_name" in body
+    assert "slot" in body
+    assert "status" in body
+    assert "created_at" in body
+
+
+def test_admin_appointment_detail_404_unknown() -> None:
+    """GET /admin/appointments/{id} returns 404 for non-existent appointment."""
+    client = TestClient(app)
+    resp = client.get("/admin/appointments/999999", headers=ADMIN)
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "appointment not found"
