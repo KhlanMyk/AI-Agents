@@ -193,13 +193,7 @@ def chat(payload: ChatRequest) -> ChatResponse:
     save_lead(
         session_id=session_id,
         name=state.patient_name or "",
-        contact="",
-        message=sanitized_msg,
-        intent=intent or "unknown",
-    )
-
-    if "appointment is confirmed for" in reply.lower():
-        slot = reply.split("confirmed for", maxsplit=1)[-1].split(".", maxsplit=1)[0].strip()
+        contact=sanitize_for_sql(state.contact or ""),
         create_appointment(
             session_id=session_id,
             patient_name=state.patient_name or "",
@@ -484,6 +478,7 @@ def session_summary(session_id: str) -> dict:
     return {
         "session_id": session_id,
         "patient_name": state.patient_name,
+        "contact": state.contact,
         "symptoms": state.symptom_summary(),
         "appointment_requested": state.appointment_requested,
         "confirmed_slot": state.confirmed_slot,

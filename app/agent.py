@@ -10,6 +10,7 @@ import re
 @dataclass
 class ChatState:
     patient_name: str | None = None
+    contact: str | None = None
     symptoms: List[str] = field(default_factory=list)
     appointment_requested: bool = False
     offered_slots: List[str] = field(default_factory=list)
@@ -110,6 +111,27 @@ class DentistAIAgent:
             m = re.search(p, text, re.IGNORECASE)
             if m:
                 return m.group(1).strip().title()
+        return None
+
+    def _extract_contact(self, text: str) -> str | None:
+        """
+        Extract a phone number or email address from text.
+        Returns the first match found, or None.
+        """
+        # Phone: various formats like +1-800-555-0199, (212) 555-0100, 555 123 4567
+        phone_re = re.search(
+            r"(?:\+?\d[\d\s\-().]{7,}\d)",
+            text,
+        )
+        if phone_re:
+            return phone_re.group(0).strip()
+        # Email
+        email_re = re.search(
+            r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
+            text,
+        )
+        if email_re:
+            return email_re.group(0).strip()
         return None
 
     def _detect_emergency(self, text: str) -> bool:
@@ -232,6 +254,12 @@ class DentistAIAgent:
         name = self._extract_name(clean_message)
         if name:
             self.state.patient_name = name
+
+        # Extract contact info (phone/email) if not already captured
+        if not self.state.contact:
+            contact = self._extract_contact(clean_message)
+            if contact:
+                self.state.contact = contact
 
         intent, confidence = self._intent_with_confidence(clean_message)
         self.state.last_intent = intent
