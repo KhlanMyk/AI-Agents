@@ -85,3 +85,15 @@ def update_appointment_status(appointment_id: int, new_status: str) -> Optional[
         db.commit()
         db.refresh(appt)
         return appt
+
+
+def get_lead_by_id(lead_id: int) -> Optional[ChatLead]:
+    """Fetch a single lead by primary key. Returns None if not found."""
+    with SessionLocal() as db:
+        return db.get(ChatLead, lead_id)
+
+
+def get_appointment_by_id(appointment_id: int) -> Optional[Appointment]:
+    """Fetch a single appointment by primary key. Returns None if not found."""
+    with SessionLocal() as db:
+        return db.get(Appointment, appointment_id)

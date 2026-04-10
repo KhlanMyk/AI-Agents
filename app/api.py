@@ -16,6 +16,8 @@ from app.config import ADMIN_TOKEN, CORS_ORIGINS
 from app.db import init_db
 from app.repository import (
     create_appointment,
+    get_appointment_by_id,
+    get_lead_by_id,
     list_appointments,
     list_leads,
     save_lead,
@@ -194,6 +196,12 @@ def chat(payload: ChatRequest) -> ChatResponse:
         session_id=session_id,
         name=state.patient_name or "",
         contact=sanitize_for_sql(state.contact or ""),
+        message=sanitized_msg,
+        intent=intent,
+    )
+
+    slot = state.confirmed_slot
+    if slot:
         create_appointment(
             session_id=session_id,
             patient_name=state.patient_name or "",
@@ -370,6 +378,64 @@ def admin_leads_search(
         }
         for r in rows
     ]
+
+
+@app.get("/admin/leads/{lead_id}")
+def admin_lead_detail(
+    lead_id: int,
+    x_admin_token: str | None = Header(default=None),
+) -> dict[str, str]:
+    """
+    Get a single lead by ID (admin endpoint).
+
+    Requires: x-admin-token header with correct admin token.
+    Returns: Lead record with id, session_id, name, contact, message, intent, created_at.
+    Status Codes:
+        200: Lead found and returned
+        404: Lead not found
+    """
+    _check_admin_token(x_admin_token)
+    lead = get_lead_by_id(lead_id)
+    if lead is None:
+        raise HTTPException(status_code=404, detail="lead not found")
+    return {
+        "id": str(lead.id),
+        "session_id": lead.session_id,
+        "name": lead.name,
+        "contact": lead.contact,
+        "message": lead.message,
+        "intent": lead.intent,
+        "created_at": lead.created_at.isoformat(),
+    }
+
+
+@app.get("/admin/appointments/{appointment_id}")
+def admin_appointment_detail(
+    appointment_id: int,
+    x_admin_token: str | None = Header(default=None),
+) -> dict[str, str]:
+    """
+    Get a single appointment by ID (admin endpoint).
+
+    Requires: x-admin-token header with correct admin token.
+    Returns: Appointment record with id, session_id, patient_name, slot, status, notes, created_at.
+    Status Codes:
+        200: Appointment found and returned
+        404: Appointment not found
+    """
+    _check_admin_token(x_admin_token)
+    appt = get_appointment_by_id(appointment_id)
+    if appt is None:
+        raise HTTPException(status_code=404, detail="appointment not found")
+    return {
+        "id": str(appt.id),
+        "session_id": appt.session_id,
+        "patient_name": appt.patient_name,
+        "slot": appt.slot,
+        "status": appt.status,
+        "notes": appt.notes,
+        "created_at": appt.created_at.isoformat(),
+    }
 
 
 @app.get("/export/{session_id}")
