@@ -8,10 +8,11 @@ import re
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.agent import DentistAIAgent
-from app.config import ADMIN_TOKEN
+from app.config import ADMIN_TOKEN, CORS_ORIGINS
 from app.db import init_db
 from app.repository import (
     create_appointment,
@@ -36,6 +37,15 @@ logger = get_logger(__name__)
 
 # Register middleware for request/response tracking
 app.add_middleware(RequestMetricsMiddleware)
+
+# CORS – allow configured origins so browser-based frontends can call the API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class ChatRequest(BaseModel):
