@@ -12,6 +12,8 @@
       .msg { padding: 10px 12px; border-radius: 10px; max-width: 85%; line-height: 1.4; }
       .you { align-self: flex-end; background: #dbeafe; }
       .bot { align-self: flex-start; background: #f3f4f6; }
+      .typing { align-self: flex-start; background: #f3f4f6; padding: 10px 14px; border-radius: 10px; color: #9ca3af; font-style: italic; font-size: 14px; letter-spacing: .05em; }
+      .intent-badge { align-self: flex-start; font-size: 11px; color: #6b7280; background: #e5e7eb; border-radius: 4px; padding: 2px 6px; margin-top: -8px; }
       .form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #e5e7eb; }
       input { flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; }
       button { border: none; background: #2563eb; color: #fff; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
@@ -41,6 +43,30 @@
         el.textContent = text;
         chat.appendChild(el);
         chat.scrollTop = chat.scrollHeight;
+        return el;
+      }
+
+      function showTyping() {
+        const el = document.createElement('div');
+        el.className = 'typing';
+        el.id = 'typing-indicator';
+        el.textContent = '● ● ●';
+        chat.appendChild(el);
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      function removeTyping() {
+        const el = document.getElementById('typing-indicator');
+        if (el) el.remove();
+      }
+
+      function addIntentBadge(intent) {
+        if (!intent) return;
+        const el = document.createElement('div');
+        el.className = 'intent-badge';
+        el.textContent = intent.replace(/_/g, ' ');
+        chat.appendChild(el);
+        chat.scrollTop = chat.scrollHeight;
       }
 
       add("Hi! I'm your dentist assistant. How can I help today?", 'bot');
@@ -51,16 +77,29 @@
         if (!message) return;
         add(message, 'you');
         input.value = '';
+        input.disabled = true;
 
-        const resp = await fetch('/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, session_id: sessionId })
-        });
+        showTyping();
 
-        const data = await resp.json();
-        sessionId = data.session_id;
-        add(data.reply, 'bot');
+        try {
+          const resp = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, session_id: sessionId })
+          });
+
+          const data = await resp.json();
+          sessionId = data.session_id;
+          removeTyping();
+          add(data.reply, 'bot');
+          addIntentBadge(data.intent);
+        } catch (err) {
+          removeTyping();
+          add('Sorry, something went wrong. Please try again.', 'bot');
+        } finally {
+          input.disabled = false;
+          input.focus();
+        }
       });
     </script>
   </body>
