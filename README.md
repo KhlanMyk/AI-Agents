@@ -14,6 +14,14 @@ Production-ready starter for a dental clinic assistant:
 3. Open:
    - `http://127.0.0.1:8000`
 
+## Docker
+- Build and run with Docker Compose:
+  - `docker compose up --build`
+- Open:
+  - `http://127.0.0.1:8000`
+
+The compose setup mounts `./data` into the container so SQLite data persists locally.
+
 ## API endpoints
 - `GET /health`
 - `POST /chat`
@@ -26,6 +34,12 @@ Production-ready starter for a dental clinic assistant:
 Use `.env`:
 - `DATABASE_URL=sqlite:///data/dentist_app.db`
 - `ADMIN_TOKEN=change-me`
+- `CORS_ORIGINS=*`
+
+Optional runtime variables:
+- `HOST=0.0.0.0`
+- `PORT=8000`
+- `RELOAD=false`
 
 ## Tests
 - Run: `pytest`
