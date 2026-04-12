@@ -14,6 +14,16 @@ Production-ready starter for a dental clinic assistant:
 3. Open:
    - `http://127.0.0.1:8000`
 
+## CLI assistant
+- Interactive mode:
+   - `python dentist_agent.py`
+- One-shot mode:
+   - `python dentist_agent.py --message "what are your hours?"`
+- Disable colors:
+   - `python dentist_agent.py --no-color`
+- Export transcript to JSON:
+   - `python dentist_agent.py --export data/cli_transcript.json`
+
 ## Docker
 - Build and run with Docker Compose:
   - `docker compose up --build`
