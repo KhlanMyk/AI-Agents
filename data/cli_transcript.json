@@ -1,0 +1,14 @@
+{
+  "exported_at": "2026-04-12T13:32:03.383174+00:00",
+  "message_count": 2,
+  "messages": [
+    {
+      "role": "user",
+      "text": "need appointment"
+    },
+    {
+      "role": "assistant",
+      "text": "Sure, there. Available slots: 1) Monday, 13 Apr at 11:00  2) Monday, 13 Apr at 15:00. Reply with 'confirm appointment' for slot 1 or type '2' for slot 2."
+    }
+  ]
+}
