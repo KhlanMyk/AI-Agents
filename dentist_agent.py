@@ -1,8 +1,28 @@
+import argparse
+
 from app.agent import DentistAIAgent
 
 
-def run_chat() -> None:
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="dentist_agent.py",
+        description="CLI chatbot assistant for a dental clinic.",
+    )
+    parser.add_argument(
+        "-m",
+        "--message",
+        help="Run in one-shot mode with a single user message.",
+    )
+    return parser
+
+
+def run_chat(message: str | None = None) -> None:
     agent = DentistAIAgent()
+
+    if message is not None:
+        print(f"Bot: {agent.respond(message)}")
+        return
+
     print("Dentist AI Agent is ready. Type 'exit' to quit.\n")
 
     while True:
@@ -16,4 +36,5 @@ def run_chat() -> None:
 
 
 if __name__ == "__main__":
-    run_chat()
+    args = _build_parser().parse_args()
+    run_chat(message=args.message)
