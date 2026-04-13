@@ -6,6 +6,7 @@ from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
+from app.time_utils import utc_now
 
 
 class ChatLead(Base):
@@ -17,7 +18,7 @@ class ChatLead(Base):
     contact: Mapped[str] = mapped_column(String(120), default="")
     message: Mapped[str] = mapped_column(Text, default="")
     intent: Mapped[str] = mapped_column(String(80), default="unknown")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
 class Appointment(Base):
@@ -29,4 +30,4 @@ class Appointment(Base):
     slot: Mapped[str] = mapped_column(String(120), default="")
     status: Mapped[str] = mapped_column(String(40), default="confirmed")
     notes: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
