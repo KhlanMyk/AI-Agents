@@ -3,6 +3,8 @@
 from datetime import datetime, timedelta
 from typing import Dict
 
+from app.time_utils import utc_now
+
 
 class RateLimiter:
     """Simple rate limiter using sliding window to prevent abuse."""
@@ -29,7 +31,7 @@ class RateLimiter:
         Returns:
             True if request is allowed, False if rate limit exceeded
         """
-        now = datetime.utcnow()
+        now = utc_now()
         
         if session_id not in self.requests:
             self.requests[session_id] = []
@@ -58,7 +60,7 @@ class RateLimiter:
         Returns:
             Number of remaining requests allowed
         """
-        now = datetime.utcnow()
+        now = utc_now()
         
         if session_id not in self.requests:
             return self.max_requests

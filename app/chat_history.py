@@ -1,9 +1,10 @@
 """Chat history tracking and export functionality."""
 
 from dataclasses import dataclass, asdict
-from datetime import datetime
 from typing import List
 import json
+
+from app.time_utils import utc_now
 
 
 @dataclass
@@ -33,7 +34,7 @@ class ChatHistory:
             intent: Optional detected intent
         """
         msg = ChatMessage(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=utc_now().isoformat(),
             sender=sender,
             message=message,
             intent=intent,
@@ -44,7 +45,7 @@ class ChatHistory:
         """Export history as structured dict."""
         return {
             "message_count": len(self.messages),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now().isoformat(),
             "messages": [asdict(m) for m in self.messages],
         }
     

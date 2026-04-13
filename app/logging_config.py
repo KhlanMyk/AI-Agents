@@ -2,8 +2,9 @@
 
 import logging
 import json
-from datetime import datetime
 from typing import Any, Optional
+
+from app.time_utils import utc_now
 
 
 class StructuredJsonFormatter(logging.Formatter):
@@ -12,7 +13,7 @@ class StructuredJsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
         log_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now().isoformat(),
             "level": record.levelname,
             "module": record.module,
             "function": record.funcName,

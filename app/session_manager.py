@@ -3,6 +3,8 @@
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 
+from app.time_utils import utc_now
+
 
 class SessionManager:
     """Manages active sessions with TTL (time-to-live) tracking."""
@@ -19,7 +21,7 @@ class SessionManager:
     
     def mark_active(self, session_id: str) -> None:
         """Mark a session as active (update last access time)."""
-        self.sessions[session_id] = datetime.utcnow()
+        self.sessions[session_id] = utc_now()
     
     def is_active(self, session_id: str) -> bool:
         """Check if session is still within TTL window."""
@@ -28,7 +30,7 @@ class SessionManager:
         
         last_access = self.sessions[session_id]
         expiration_time = last_access + self.default_ttl
-        return datetime.utcnow() < expiration_time
+        return utc_now() < expiration_time
     
     def cleanup_expired(self) -> list[str]:
         """
@@ -37,7 +39,7 @@ class SessionManager:
         Returns:
             List of session IDs that were cleaned up
         """
-        now = datetime.utcnow()
+        now = utc_now()
         expired = [
             sid for sid, last_access in self.sessions.items()
             if now >= last_access + self.default_ttl
