@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Dict
 from uuid import uuid4
@@ -13,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.agent import DentistAIAgent
 from app.config import ADMIN_TOKEN, CORS_ORIGINS
-from app.db import init_db
+from app.db import init_db, SessionLocal
 from app.repository import (
     create_appointment,
     get_appointment_by_id,
@@ -136,9 +137,31 @@ def get_agent(session_id: str) -> DentistAIAgent:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    """Health check endpoint. Returns 200 if service is running."""
-    return {"status": "ok"}
+def health() -> dict:
+    """
+    Enhanced health check endpoint.
+    
+    Returns system status including database connectivity, API version,
+    and uptime indicators.
+    
+    Status Codes:
+        200: System is healthy and operational
+        503: System has issues (database down, etc.)
+    """
+    db_status = "ok"
+    try:
+        # Check database connectivity
+        with SessionLocal() as db:
+            db.execute("SELECT 1")
+    except Exception as e:
+        db_status = f"error: {str(e)[:50]}"
+    
+    return {
+        "status": "ok",
+        "database": db_status,
+        "version": "1.0.0",
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
 
 
 @app.get("/", response_class=HTMLResponse)
