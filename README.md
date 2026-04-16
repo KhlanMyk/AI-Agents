@@ -23,6 +23,8 @@ Production-ready starter for a dental clinic assistant:
    - `python dentist_agent.py --no-color`
 - Export transcript to JSON:
    - `python dentist_agent.py --export data/cli_transcript.json`
+- Export transcript with auto-generated timestamped filename:
+   - `python dentist_agent.py --export-dir data/exports`
 
 ## Docker
 - Build and run with Docker Compose:
@@ -53,6 +55,12 @@ Optional runtime variables:
 
 ## Tests
 - Run: `pytest`
+
+## Smoke test
+- Quick API check:
+  - `python scripts/smoke_test.py`
+- Include admin verification:
+  - `python scripts/smoke_test.py --check-admin`
 
 ## Important
 This bot provides informational assistance and does not replace professional medical diagnosis.
