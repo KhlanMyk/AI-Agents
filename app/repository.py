@@ -4,9 +4,13 @@ from typing import List, Optional
 
 from sqlalchemy import select
 
-from app.cache import cache_with_ttl
+from app.cache import cache_with_ttl, invalidate_cache
 from app.db import SessionLocal
 from app.models import Appointment, ChatLead
+
+
+LEADS_CACHE_NAMESPACE = "leads"
+APPOINTMENTS_CACHE_NAMESPACE = "appointments"
 
 
 def save_lead(session_id: str, name: str, contact: str, message: str, intent: str) -> ChatLead:
@@ -21,10 +25,11 @@ def save_lead(session_id: str, name: str, contact: str, message: str, intent: st
         db.add(lead)
         db.commit()
         db.refresh(lead)
-        return lead
+    invalidate_cache(LEADS_CACHE_NAMESPACE)
+    return lead
 
 
-@cache_with_ttl(ttl_seconds=30)
+@cache_with_ttl(ttl_seconds=30, namespace=LEADS_CACHE_NAMESPACE)
 def list_leads(limit: int = 100, offset: int = 0) -> List[ChatLead]:
     with SessionLocal() as db:
         rows = db.execute(
@@ -36,7 +41,7 @@ def list_leads(limit: int = 100, offset: int = 0) -> List[ChatLead]:
         return list(rows)
 
 
-@cache_with_ttl(ttl_seconds=30)
+@cache_with_ttl(ttl_seconds=30, namespace=LEADS_CACHE_NAMESPACE)
 def search_leads(intent: Optional[str] = None, name: Optional[str] = None, limit: int = 100) -> List[ChatLead]:
     """Filter leads by intent and/or name (case-insensitive partial match)."""
     with SessionLocal() as db:
@@ -61,10 +66,11 @@ def create_appointment(session_id: str, patient_name: str, slot: str, notes: str
         db.add(item)
         db.commit()
         db.refresh(item)
-        return item
+    invalidate_cache(APPOINTMENTS_CACHE_NAMESPACE)
+    return item
 
 
-@cache_with_ttl(ttl_seconds=30)
+@cache_with_ttl(ttl_seconds=30, namespace=APPOINTMENTS_CACHE_NAMESPACE)
 def list_appointments(limit: int = 100, offset: int = 0) -> List[Appointment]:
     with SessionLocal() as db:
         rows = db.execute(
@@ -88,7 +94,8 @@ def update_appointment_status(appointment_id: int, new_status: str) -> Optional[
         appt.status = new_status
         db.commit()
         db.refresh(appt)
-        return appt
+    invalidate_cache(APPOINTMENTS_CACHE_NAMESPACE)
+    return appt
 
 
 def get_lead_by_id(lead_id: int) -> Optional[ChatLead]:
