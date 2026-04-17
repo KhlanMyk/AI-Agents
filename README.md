@@ -34,6 +34,10 @@ Production-ready starter for a dental clinic assistant:
 
 The compose setup mounts `./data` into the container so SQLite data persists locally.
 
+## Admin performance
+- Admin list endpoints use short-lived caching for faster repeated reads.
+- Cache is automatically invalidated after lead/appointment write operations.
+
 ## API endpoints
 - `GET /health`
 - `POST /chat`
