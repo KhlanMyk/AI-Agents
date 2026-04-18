@@ -1,3 +1,4 @@
+from datetime import timedelta
 from fastapi.testclient import TestClient
 
 from app.api import app
@@ -297,3 +298,42 @@ def test_admin_appointment_detail_404_unknown() -> None:
     resp = client.get("/admin/appointments/999999", headers=ADMIN)
     assert resp.status_code == 404
     assert resp.json()["detail"] == "appointment not found"
+
+
+def test_admin_active_sessions_endpoint_lists_recent_session() -> None:
+    """Admin active sessions endpoint includes session details and message counts."""
+    client = TestClient(app)
+    r = client.post("/chat", json={"message": "hello from active session endpoint"})
+    sid = r.json()["session_id"]
+
+    resp = client.get("/admin/sessions/active", headers=ADMIN)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "sessions" in body
+    assert "total" in body
+    assert any(item["session_id"] == sid for item in body["sessions"])
+
+
+def test_session_cleanup_dry_run_does_not_remove_session() -> None:
+    """dry_run cleanup reports candidates without deleting in-memory session data."""
+    client = TestClient(app)
+    r = client.post("/chat", json={"message": "hello dry run cleanup"})
+    sid = r.json()["session_id"]
+
+    from app import api as api_module
+
+    original_ttl = api_module.session_mgr.default_ttl
+    try:
+        api_module.session_mgr.default_ttl = timedelta(seconds=-1)
+
+        dry = client.post("/admin/sessions/cleanup?dry_run=true", headers=ADMIN)
+        assert dry.status_code == 200
+        body = dry.json()
+        assert body["dry_run"] is True
+        assert sid in body["session_ids"]
+
+        # Session should still exist because this is a dry run
+        summary = client.get(f"/session/{sid}/summary")
+        assert summary.status_code == 200
+    finally:
+        api_module.session_mgr.default_ttl = original_ttl
