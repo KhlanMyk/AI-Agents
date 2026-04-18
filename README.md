@@ -45,6 +45,8 @@ The compose setup mounts `./data` into the container so SQLite data persists loc
 - `GET /admin/leads` (requires `x-admin-token`)
 - `GET /admin/appointments` (requires `x-admin-token`)
 - `GET /admin/stats` (requires `x-admin-token`)
+- `GET /admin/sessions/active` (requires `x-admin-token`)
+- `POST /admin/sessions/cleanup?dry_run=true` (requires `x-admin-token`)
 
 ## Environment
 Use `.env`:
