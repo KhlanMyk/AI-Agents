@@ -482,9 +482,47 @@ def export_chat_history(session_id: str) -> dict:
     return history.to_dict()
 
 
+@app.get("/admin/sessions/active")
+def active_sessions(
+    x_admin_token: str | None = Header(default=None),
+    limit: int = 200,
+) -> dict:
+    """
+    Inspect in-memory sessions and their activity status (admin endpoint).
+
+    Includes last access timestamp, active flag, and chat message count.
+
+    Requires: x-admin-token header with correct admin token.
+    Query params: limit (default 200) to cap returned session records.
+    """
+    _check_admin_token(x_admin_token)
+    rows: list[dict[str, object]] = []
+    for sid, last_access in list(session_mgr.sessions.items()):
+        history = chat_histories.get(sid)
+        rows.append(
+            {
+                "session_id": sid,
+                "last_access": last_access.isoformat(),
+                "is_active": session_mgr.is_active(sid),
+                "has_agent": sid in sessions,
+                "message_count": len(history.messages) if history else 0,
+            }
+        )
+
+    rows.sort(key=lambda x: str(x["last_access"]), reverse=True)
+    limited = rows[: max(0, limit)]
+
+    return {
+        "total": len(rows),
+        "returned": len(limited),
+        "sessions": limited,
+    }
+
+
 @app.post("/admin/sessions/cleanup")
 def cleanup_sessions(
     x_admin_token: str | None = Header(default=None),
+    dry_run: bool = False,
 ) -> dict:
     """
     Remove expired in-memory sessions (admin endpoint).
@@ -492,10 +530,27 @@ def cleanup_sessions(
     Frees memory by evicting sessions that have exceeded their TTL (60 min idle).
     Database records (leads, appointments) are preserved.
 
+    Query params:
+    - dry_run: when true, only reports sessions that would be removed.
+
     Requires: x-admin-token header with correct admin token.
     Returns: Count of cleaned sessions and their IDs.
     """
     _check_admin_token(x_admin_token)
+
+    if dry_run:
+        now = datetime.now(UTC)
+        expired_ids = [
+            sid
+            for sid, last_access in session_mgr.sessions.items()
+            if now >= last_access + session_mgr.default_ttl
+        ]
+        return {
+            "cleaned": len(expired_ids),
+            "session_ids": expired_ids,
+            "dry_run": True,
+        }
+
     expired_ids = session_mgr.cleanup_expired()
     for sid in expired_ids:
         sessions.pop(sid, None)
@@ -503,6 +558,7 @@ def cleanup_sessions(
     return {
         "cleaned": len(expired_ids),
         "session_ids": expired_ids,
+        "dry_run": False,
     }
 
 
