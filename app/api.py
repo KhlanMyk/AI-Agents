@@ -7,7 +7,10 @@ from uuid import uuid4
 import re
 
 from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+import csv
+import io
+
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -16,6 +19,8 @@ from app.agent import DentistAIAgent
 from app.config import ADMIN_TOKEN, CORS_ORIGINS
 from app.db import init_db, SessionLocal
 from app.repository import (
+    count_appointments,
+    count_leads,
     create_appointment,
     get_appointment_by_id,
     get_lead_by_id,
@@ -318,12 +323,72 @@ def admin_stats(x_admin_token: str | None = Header(default=None)) -> dict[str, i
     Returns: Total count of leads and appointments.
     """
     _check_admin_token(x_admin_token)
-    leads = list_leads(limit=1000)
-    appts = list_appointments(limit=1000)
     return {
-        "total_leads": len(leads),
-        "total_appointments": len(appts),
+        "total_leads": count_leads(),
+        "total_appointments": count_appointments(),
     }
+
+
+@app.get("/admin/leads/export")
+def export_leads_csv(
+    x_admin_token: str | None = Header(default=None),
+    limit: int = 5000,
+) -> StreamingResponse:
+    """
+    Export all leads as a CSV file (admin endpoint).
+
+    Requires: x-admin-token header with correct admin token.
+    Query params: limit (default 5000).
+    Returns: CSV file download with columns: id, session_id, name, contact, message, intent, created_at.
+    """
+    _check_admin_token(x_admin_token)
+    rows = list_leads(limit=limit, offset=0)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id", "session_id", "name", "contact", "message", "intent", "created_at"])
+    for r in rows:
+        writer.writerow([
+            r.id, r.session_id, r.name, r.contact, r.message, r.intent,
+            r.created_at.isoformat(),
+        ])
+    output.seek(0)
+    filename = f"leads_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.get("/admin/appointments/export")
+def export_appointments_csv(
+    x_admin_token: str | None = Header(default=None),
+    limit: int = 5000,
+) -> StreamingResponse:
+    """
+    Export all appointments as a CSV file (admin endpoint).
+
+    Requires: x-admin-token header with correct admin token.
+    Query params: limit (default 5000).
+    Returns: CSV file download with columns: id, session_id, patient_name, slot, notes, status, created_at.
+    """
+    _check_admin_token(x_admin_token)
+    rows = list_appointments(limit=limit, offset=0)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id", "session_id", "patient_name", "slot", "notes", "status", "created_at"])
+    for r in rows:
+        writer.writerow([
+            r.id, r.session_id, r.patient_name, r.slot, r.notes, r.status,
+            r.created_at.isoformat(),
+        ])
+    output.seek(0)
+    filename = f"appointments_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 class AppointmentStatusUpdate(BaseModel):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.cache import cache_with_ttl, invalidate_cache
 from app.db import SessionLocal
@@ -80,6 +80,18 @@ def list_appointments(limit: int = 100, offset: int = 0) -> List[Appointment]:
             .offset(offset)
         ).scalars().all()
         return list(rows)
+
+
+def count_leads() -> int:
+    """Return total number of leads in the database."""
+    with SessionLocal() as db:
+        return db.execute(select(func.count()).select_from(ChatLead)).scalar_one()
+
+
+def count_appointments() -> int:
+    """Return total number of appointments in the database."""
+    with SessionLocal() as db:
+        return db.execute(select(func.count()).select_from(Appointment)).scalar_one()
 
 
 def update_appointment_status(appointment_id: int, new_status: str) -> Optional[Appointment]:
