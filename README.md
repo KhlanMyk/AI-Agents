@@ -44,9 +44,23 @@ The compose setup mounts `./data` into the container so SQLite data persists loc
 - `POST /reset`
 - `GET /admin/leads` (requires `x-admin-token`)
 - `GET /admin/appointments` (requires `x-admin-token`)
-- `GET /admin/stats` (requires `x-admin-token`)
+- `GET /admin/stats` (requires `x-admin-token`) — uses efficient `COUNT(*)` queries
+- `GET /admin/leads/export` (requires `x-admin-token`) — download leads as CSV
+- `GET /admin/appointments/export` (requires `x-admin-token`) — download appointments as CSV
 - `GET /admin/sessions/active` (requires `x-admin-token`)
 - `POST /admin/sessions/cleanup?dry_run=true` (requires `x-admin-token`)
+
+### CSV exports
+
+Both export endpoints return a `text/csv` file with a timestamped filename.
+
+```sh
+# Download all leads
+curl -H "x-admin-token: change-me" http://localhost:8000/admin/leads/export -o leads.csv
+
+# Download all appointments
+curl -H "x-admin-token: change-me" http://localhost:8000/admin/appointments/export -o appointments.csv
+```
 
 ## Environment
 Use `.env`:
