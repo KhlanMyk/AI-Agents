@@ -337,3 +337,60 @@ def test_session_cleanup_dry_run_does_not_remove_session() -> None:
         assert summary.status_code == 200
     finally:
         api_module.session_mgr.default_ttl = original_ttl
+
+
+def test_admin_leads_export_csv() -> None:
+    client = TestClient(app)
+    # Seed at least one lead
+    client.post("/chat", json={"message": "hello export test"})
+
+    resp = client.get("/admin/leads/export", headers=ADMIN)
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    disposition = resp.headers.get("content-disposition", "")
+    assert "attachment" in disposition
+    assert "leads_" in disposition
+
+    lines = resp.text.strip().splitlines()
+    assert lines[0] == "id,session_id,name,contact,message,intent,created_at"
+    assert len(lines) >= 2  # header + at least one row
+
+
+def test_admin_appointments_export_csv() -> None:
+    client = TestClient(app)
+    # Seed an appointment
+    r = client.post("/chat", json={"message": "book appointment"})
+    sid = r.json()["session_id"]
+    client.post("/chat", json={"message": "confirm appointment", "session_id": sid})
+
+    resp = client.get("/admin/appointments/export", headers=ADMIN)
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    disposition = resp.headers.get("content-disposition", "")
+    assert "attachment" in disposition
+    assert "appointments_" in disposition
+
+    lines = resp.text.strip().splitlines()
+    assert lines[0] == "id,session_id,patient_name,slot,notes,status,created_at"
+    assert len(lines) >= 2
+
+
+def test_admin_stats_returns_accurate_counts() -> None:
+    client = TestClient(app)
+    stats_before = client.get("/admin/stats", headers=ADMIN)
+    assert stats_before.status_code == 200
+    body_before = stats_before.json()
+    assert "total_leads" in body_before
+    assert "total_appointments" in body_before
+
+    # Seed a new lead and check count increases
+    client.post("/chat", json={"message": "stats count test"})
+    stats_after = client.get("/admin/stats", headers=ADMIN)
+    body_after = stats_after.json()
+    assert body_after["total_leads"] >= body_before["total_leads"] + 1
+
+
+def test_csv_export_requires_admin_token() -> None:
+    client = TestClient(app)
+    assert client.get("/admin/leads/export").status_code == 401
+    assert client.get("/admin/appointments/export").status_code == 401
