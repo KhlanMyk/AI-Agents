@@ -6,7 +6,7 @@ from typing import Dict
 from uuid import uuid4
 import re
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 import csv
 import io
 
@@ -19,7 +19,9 @@ from app.agent import DentistAIAgent
 from app.config import ADMIN_TOKEN, CORS_ORIGINS
 from app.db import init_db, SessionLocal
 from app.repository import (
+    count_appointments_by_status,
     count_appointments,
+    count_leads_by_intent,
     count_leads,
     create_appointment,
     get_appointment_by_id,
@@ -261,8 +263,8 @@ def _check_admin_token(x_admin_token: str | None) -> None:
 @app.get("/admin/leads")
 def admin_leads(
     x_admin_token: str | None = Header(default=None),
-    limit: int = 100,
-    offset: int = 0,
+    limit: int = Query(default=100, ge=1, le=10000),
+    offset: int = Query(default=0, ge=0),
 ) -> list[dict[str, str]]:
     """
     List chat leads with pagination (admin endpoint).
@@ -289,8 +291,8 @@ def admin_leads(
 @app.get("/admin/appointments")
 def admin_appointments(
     x_admin_token: str | None = Header(default=None),
-    limit: int = 100,
-    offset: int = 0,
+    limit: int = Query(default=100, ge=1, le=10000),
+    offset: int = Query(default=0, ge=0),
 ) -> list[dict[str, str]]:
     """
     List appointments with pagination (admin endpoint).
@@ -329,10 +331,26 @@ def admin_stats(x_admin_token: str | None = Header(default=None)) -> dict[str, i
     }
 
 
+@app.get("/admin/stats/breakdown")
+def admin_stats_breakdown(x_admin_token: str | None = Header(default=None)) -> dict[str, object]:
+    """
+    Get grouped admin statistics for leads and appointments.
+
+    Requires: x-admin-token header with correct admin token.
+    Returns: counts grouped by lead intent and appointment status.
+    """
+    _check_admin_token(x_admin_token)
+    return {
+        "leads_by_intent": count_leads_by_intent(),
+        "appointments_by_status": count_appointments_by_status(),
+        "generated_at": datetime.now(UTC).isoformat(),
+    }
+
+
 @app.get("/admin/leads/export")
 def export_leads_csv(
     x_admin_token: str | None = Header(default=None),
-    limit: int = 5000,
+    limit: int = Query(default=5000, ge=1, le=10000),
 ) -> StreamingResponse:
     """
     Export all leads as a CSV file (admin endpoint).
@@ -363,7 +381,7 @@ def export_leads_csv(
 @app.get("/admin/appointments/export")
 def export_appointments_csv(
     x_admin_token: str | None = Header(default=None),
-    limit: int = 5000,
+    limit: int = Query(default=5000, ge=1, le=10000),
 ) -> StreamingResponse:
     """
     Export all appointments as a CSV file (admin endpoint).
@@ -444,7 +462,7 @@ def admin_leads_search(
     x_admin_token: str | None = Header(default=None),
     intent: str | None = None,
     name: str | None = None,
-    limit: int = 50,
+    limit: int = Query(default=50, ge=1, le=10000),
 ) -> list[dict[str, str]]:
     """
     Search and filter leads by intent or patient name (admin endpoint).
@@ -550,7 +568,7 @@ def export_chat_history(session_id: str) -> dict:
 @app.get("/admin/sessions/active")
 def active_sessions(
     x_admin_token: str | None = Header(default=None),
-    limit: int = 200,
+    limit: int = Query(default=200, ge=1, le=10000),
 ) -> dict:
     """
     Inspect in-memory sessions and their activity status (admin endpoint).
@@ -575,7 +593,7 @@ def active_sessions(
         )
 
     rows.sort(key=lambda x: str(x["last_access"]), reverse=True)
-    limited = rows[: max(0, limit)]
+    limited = rows[:limit]
 
     return {
         "total": len(rows),

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from sqlalchemy import func, select
 
@@ -92,6 +92,28 @@ def count_appointments() -> int:
     """Return total number of appointments in the database."""
     with SessionLocal() as db:
         return db.execute(select(func.count()).select_from(Appointment)).scalar_one()
+
+
+@cache_with_ttl(ttl_seconds=30, namespace=LEADS_CACHE_NAMESPACE)
+def count_leads_by_intent() -> Dict[str, int]:
+    """Return grouped lead counts by intent."""
+    with SessionLocal() as db:
+        rows = db.execute(
+            select(ChatLead.intent, func.count(ChatLead.id))
+            .group_by(ChatLead.intent)
+        ).all()
+    return {intent: int(count) for intent, count in rows}
+
+
+@cache_with_ttl(ttl_seconds=30, namespace=APPOINTMENTS_CACHE_NAMESPACE)
+def count_appointments_by_status() -> Dict[str, int]:
+    """Return grouped appointment counts by status."""
+    with SessionLocal() as db:
+        rows = db.execute(
+            select(Appointment.status, func.count(Appointment.id))
+            .group_by(Appointment.status)
+        ).all()
+    return {status: int(count) for status, count in rows}
 
 
 def update_appointment_status(appointment_id: int, new_status: str) -> Optional[Appointment]:
