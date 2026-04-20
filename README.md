@@ -45,6 +45,7 @@ The compose setup mounts `./data` into the container so SQLite data persists loc
 - `GET /admin/leads` (requires `x-admin-token`)
 - `GET /admin/appointments` (requires `x-admin-token`)
 - `GET /admin/stats` (requires `x-admin-token`) — uses efficient `COUNT(*)` queries
+- `GET /admin/stats/breakdown` (requires `x-admin-token`) — grouped counts by lead intent and appointment status
 - `GET /admin/leads/export` (requires `x-admin-token`) — download leads as CSV
 - `GET /admin/appointments/export` (requires `x-admin-token`) — download appointments as CSV
 - `GET /admin/sessions/active` (requires `x-admin-token`)
@@ -61,6 +62,15 @@ curl -H "x-admin-token: change-me" http://localhost:8000/admin/leads/export -o l
 # Download all appointments
 curl -H "x-admin-token: change-me" http://localhost:8000/admin/appointments/export -o appointments.csv
 ```
+
+### Query validation
+
+Admin list/search/export endpoints enforce validation for pagination and limits:
+- `limit >= 1`
+- `offset >= 0` (where applicable)
+- `limit <= 10000`
+
+Invalid values return HTTP `422`.
 
 ## Environment
 Use `.env`:
