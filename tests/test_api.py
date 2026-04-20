@@ -394,3 +394,40 @@ def test_csv_export_requires_admin_token() -> None:
     client = TestClient(app)
     assert client.get("/admin/leads/export").status_code == 401
     assert client.get("/admin/appointments/export").status_code == 401
+
+
+def test_admin_stats_breakdown_endpoint() -> None:
+    client = TestClient(app)
+
+    # Seed data for both grouped dimensions
+    client.post("/chat", json={"message": "hello breakdown stats"})
+    r = client.post("/chat", json={"message": "book appointment"})
+    sid = r.json()["session_id"]
+    client.post("/chat", json={"message": "confirm appointment", "session_id": sid})
+
+    resp = client.get("/admin/stats/breakdown", headers=ADMIN)
+    assert resp.status_code == 200
+    body = resp.json()
+
+    assert "leads_by_intent" in body
+    assert isinstance(body["leads_by_intent"], dict)
+    assert "appointments_by_status" in body
+    assert isinstance(body["appointments_by_status"], dict)
+    assert "generated_at" in body
+
+
+def test_admin_stats_breakdown_requires_admin_token() -> None:
+    client = TestClient(app)
+    assert client.get("/admin/stats/breakdown").status_code == 401
+
+
+def test_admin_list_limit_validation() -> None:
+    client = TestClient(app)
+    assert client.get("/admin/leads?limit=0", headers=ADMIN).status_code == 422
+    assert client.get("/admin/appointments?offset=-1", headers=ADMIN).status_code == 422
+
+
+def test_admin_export_limit_validation() -> None:
+    client = TestClient(app)
+    assert client.get("/admin/leads/export?limit=0", headers=ADMIN).status_code == 422
+    assert client.get("/admin/appointments/export?limit=10001", headers=ADMIN).status_code == 422
