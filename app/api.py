@@ -112,6 +112,23 @@ class ResetRequest(BaseModel):
         return cleaned
 
 
+class RateLimitResetRequest(BaseModel):
+    """Request model for resetting one session's or all rate-limit counters."""
+
+    model_config = ConfigDict(extra="forbid")
+    session_id: str | None = None
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_optional_session_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        cleaned = value.strip()
+        if len(cleaned) > 64 or not re.fullmatch(r"[A-Za-z0-9\-]+", cleaned):
+            raise ValueError("invalid session_id format")
+        return cleaned
+
+
 sessions: Dict[str, DentistAIAgent] = {}
 session_mgr = SessionManager(default_ttl_minutes=60)
 chat_histories: Dict[str, ChatHistory] = {}
@@ -258,6 +275,52 @@ def reset(payload: ResetRequest) -> dict[str, str]:
 def _check_admin_token(x_admin_token: str | None) -> None:
     if not x_admin_token or x_admin_token != ADMIN_TOKEN:
         raise HTTPException(status_code=401, detail="invalid admin token")
+
+
+@app.get("/admin/rate-limit/{session_id}")
+def admin_rate_limit_status(
+    session_id: str,
+    x_admin_token: str | None = Header(default=None),
+) -> dict[str, int]:
+    """
+    Inspect current rate-limit usage for a specific session.
+
+    Requires: x-admin-token header with correct admin token.
+    Returns: used/remaining requests plus limiter configuration.
+    """
+    _check_admin_token(x_admin_token)
+    cleaned_session_id = session_id.strip()
+    if len(cleaned_session_id) > 64 or not re.fullmatch(r"[A-Za-z0-9\-]+", cleaned_session_id):
+        raise HTTPException(status_code=422, detail="invalid session_id format")
+
+    return {
+        "used": rate_limiter.get_used(cleaned_session_id),
+        "remaining": rate_limiter.get_remaining(cleaned_session_id),
+        "max_requests": rate_limiter.max_requests,
+        "window_seconds": int(rate_limiter.window.total_seconds()),
+        "tracked_sessions": rate_limiter.tracked_sessions(),
+    }
+
+
+@app.post("/admin/rate-limit/reset")
+def admin_rate_limit_reset(
+    payload: RateLimitResetRequest,
+    x_admin_token: str | None = Header(default=None),
+) -> dict[str, int | str | None]:
+    """
+    Reset rate-limit counters for one session or all sessions.
+
+    Requires: x-admin-token header with correct admin token.
+    Request body: optional session_id; if omitted, resets all tracked sessions.
+    """
+    _check_admin_token(x_admin_token)
+    result = rate_limiter.reset(payload.session_id)
+    return {
+        "reset_scope": "session" if payload.session_id else "all",
+        "session_id": payload.session_id,
+        "removed_sessions": result["removed_sessions"],
+        "removed_requests": result["removed_requests"],
+    }
 
 
 @app.get("/admin/leads")
