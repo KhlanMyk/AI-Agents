@@ -46,6 +46,8 @@ The compose setup mounts `./data` into the container so SQLite data persists loc
 - `GET /admin/appointments` (requires `x-admin-token`)
 - `GET /admin/stats` (requires `x-admin-token`) — uses efficient `COUNT(*)` queries
 - `GET /admin/stats/breakdown` (requires `x-admin-token`) — grouped counts by lead intent and appointment status
+- `GET /admin/rate-limit/{session_id}` (requires `x-admin-token`) — inspect current limiter usage for a session
+- `POST /admin/rate-limit/reset` (requires `x-admin-token`) — reset one session or all limiter counters
 - `GET /admin/leads/export` (requires `x-admin-token`) — download leads as CSV
 - `GET /admin/appointments/export` (requires `x-admin-token`) — download appointments as CSV
 - `GET /admin/sessions/active` (requires `x-admin-token`)
@@ -71,6 +73,23 @@ Admin list/search/export endpoints enforce validation for pagination and limits:
 - `limit <= 10000`
 
 Invalid values return HTTP `422`.
+
+### Rate-limit admin controls
+
+```sh
+# Inspect limiter usage for one session
+curl -H "x-admin-token: change-me" http://localhost:8000/admin/rate-limit/<session_id>
+
+# Reset limiter counters for a single session
+curl -X POST -H "x-admin-token: change-me" -H "content-type: application/json" \
+   http://localhost:8000/admin/rate-limit/reset \
+   -d '{"session_id": "<session_id>"}'
+
+# Reset limiter counters for all tracked sessions
+curl -X POST -H "x-admin-token: change-me" -H "content-type: application/json" \
+   http://localhost:8000/admin/rate-limit/reset \
+   -d '{}'
+```
 
 ## Environment
 Use `.env`:
