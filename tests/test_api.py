@@ -431,3 +431,61 @@ def test_admin_export_limit_validation() -> None:
     client = TestClient(app)
     assert client.get("/admin/leads/export?limit=0", headers=ADMIN).status_code == 422
     assert client.get("/admin/appointments/export?limit=10001", headers=ADMIN).status_code == 422
+
+
+def test_admin_rate_limit_status_and_session_reset() -> None:
+    client = TestClient(app)
+
+    r = client.post("/chat", json={"message": "hello limiter"})
+    sid = r.json()["session_id"]
+
+    status_before = client.get(f"/admin/rate-limit/{sid}", headers=ADMIN)
+    assert status_before.status_code == 200
+    before_body = status_before.json()
+    assert before_body["used"] >= 1
+    assert before_body["remaining"] <= before_body["max_requests"]
+    assert before_body["tracked_sessions"] >= 1
+
+    reset_resp = client.post(
+        "/admin/rate-limit/reset",
+        headers=ADMIN,
+        json={"session_id": sid},
+    )
+    assert reset_resp.status_code == 200
+    reset_body = reset_resp.json()
+    assert reset_body["reset_scope"] == "session"
+    assert reset_body["session_id"] == sid
+    assert reset_body["removed_sessions"] == 1
+
+    status_after = client.get(f"/admin/rate-limit/{sid}", headers=ADMIN)
+    assert status_after.status_code == 200
+    after_body = status_after.json()
+    assert after_body["used"] == 0
+    assert after_body["remaining"] == after_body["max_requests"]
+
+
+def test_admin_rate_limit_global_reset() -> None:
+    client = TestClient(app)
+
+    sid1 = client.post("/chat", json={"message": "limiter one"}).json()["session_id"]
+    sid2 = client.post("/chat", json={"message": "limiter two"}).json()["session_id"]
+    assert sid1 != sid2
+
+    global_reset = client.post("/admin/rate-limit/reset", headers=ADMIN, json={})
+    assert global_reset.status_code == 200
+    body = global_reset.json()
+    assert body["reset_scope"] == "all"
+    assert body["removed_sessions"] >= 2
+
+    status_one = client.get(f"/admin/rate-limit/{sid1}", headers=ADMIN)
+    status_two = client.get(f"/admin/rate-limit/{sid2}", headers=ADMIN)
+    assert status_one.status_code == 200
+    assert status_two.status_code == 200
+    assert status_one.json()["used"] == 0
+    assert status_two.json()["used"] == 0
+
+
+def test_admin_rate_limit_endpoints_require_admin_token() -> None:
+    client = TestClient(app)
+    assert client.get("/admin/rate-limit/some-session-id").status_code == 401
+    assert client.post("/admin/rate-limit/reset", json={}).status_code == 401
