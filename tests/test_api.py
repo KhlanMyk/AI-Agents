@@ -489,3 +489,47 @@ def test_admin_rate_limit_endpoints_require_admin_token() -> None:
     client = TestClient(app)
     assert client.get("/admin/rate-limit/some-session-id").status_code == 401
     assert client.post("/admin/rate-limit/reset", json={}).status_code == 401
+
+
+def test_admin_leads_trends_endpoint() -> None:
+    client = TestClient(app)
+
+    client.post("/chat", json={"message": "trend lead sample"})
+
+    resp = client.get("/admin/leads/trends?days=7", headers=ADMIN)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["days"] == 7
+    assert isinstance(body["series"], list)
+    assert len(body["series"]) >= 1
+    assert "date" in body["series"][0]
+    assert "count" in body["series"][0]
+    assert isinstance(body["series"][0]["count"], int)
+
+
+def test_admin_appointments_trends_endpoint() -> None:
+    client = TestClient(app)
+
+    r = client.post("/chat", json={"message": "book appointment"})
+    sid = r.json()["session_id"]
+    client.post("/chat", json={"message": "confirm appointment", "session_id": sid})
+
+    resp = client.get("/admin/appointments/trends?days=7", headers=ADMIN)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["days"] == 7
+    assert isinstance(body["series"], list)
+    assert len(body["series"]) >= 1
+    assert "date" in body["series"][0]
+    assert "count" in body["series"][0]
+    assert isinstance(body["series"][0]["count"], int)
+
+
+def test_admin_trends_auth_and_validation() -> None:
+    client = TestClient(app)
+
+    assert client.get("/admin/leads/trends").status_code == 401
+    assert client.get("/admin/appointments/trends").status_code == 401
+
+    assert client.get("/admin/leads/trends?days=0", headers=ADMIN).status_code == 422
+    assert client.get("/admin/appointments/trends?days=91", headers=ADMIN).status_code == 422
