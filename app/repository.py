@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Dict, List, Optional
 
 from sqlalchemy import func, select
@@ -7,6 +8,7 @@ from sqlalchemy import func, select
 from app.cache import cache_with_ttl, invalidate_cache
 from app.db import SessionLocal
 from app.models import Appointment, ChatLead
+from app.time_utils import utc_now
 
 
 LEADS_CACHE_NAMESPACE = "leads"
@@ -114,6 +116,40 @@ def count_appointments_by_status() -> Dict[str, int]:
             .group_by(Appointment.status)
         ).all()
     return {status: int(count) for status, count in rows}
+
+
+@cache_with_ttl(ttl_seconds=30, namespace=LEADS_CACHE_NAMESPACE)
+def leads_daily_trend(days: int = 7) -> List[Dict[str, int | str]]:
+    """Return daily lead counts for the requested trailing day window."""
+    cutoff = utc_now() - timedelta(days=max(1, days) - 1)
+    with SessionLocal() as db:
+        rows = db.execute(
+            select(
+                func.date(ChatLead.created_at).label("day"),
+                func.count(ChatLead.id).label("count"),
+            )
+            .where(ChatLead.created_at >= cutoff)
+            .group_by(func.date(ChatLead.created_at))
+            .order_by(func.date(ChatLead.created_at))
+        ).all()
+    return [{"date": str(day), "count": int(count)} for day, count in rows]
+
+
+@cache_with_ttl(ttl_seconds=30, namespace=APPOINTMENTS_CACHE_NAMESPACE)
+def appointments_daily_trend(days: int = 7) -> List[Dict[str, int | str]]:
+    """Return daily appointment counts for the requested trailing day window."""
+    cutoff = utc_now() - timedelta(days=max(1, days) - 1)
+    with SessionLocal() as db:
+        rows = db.execute(
+            select(
+                func.date(Appointment.created_at).label("day"),
+                func.count(Appointment.id).label("count"),
+            )
+            .where(Appointment.created_at >= cutoff)
+            .group_by(func.date(Appointment.created_at))
+            .order_by(func.date(Appointment.created_at))
+        ).all()
+    return [{"date": str(day), "count": int(count)} for day, count in rows]
 
 
 def update_appointment_status(appointment_id: int, new_status: str) -> Optional[Appointment]:

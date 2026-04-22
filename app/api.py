@@ -19,6 +19,7 @@ from app.agent import DentistAIAgent
 from app.config import ADMIN_TOKEN, CORS_ORIGINS
 from app.db import init_db, SessionLocal
 from app.repository import (
+    appointments_daily_trend,
     count_appointments_by_status,
     count_appointments,
     count_leads_by_intent,
@@ -28,6 +29,7 @@ from app.repository import (
     get_lead_by_id,
     list_appointments,
     list_leads,
+    leads_daily_trend,
     save_lead,
     search_leads,
     update_appointment_status,
@@ -407,6 +409,44 @@ def admin_stats_breakdown(x_admin_token: str | None = Header(default=None)) -> d
         "leads_by_intent": count_leads_by_intent(),
         "appointments_by_status": count_appointments_by_status(),
         "generated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+@app.get("/admin/leads/trends")
+def admin_leads_trends(
+    x_admin_token: str | None = Header(default=None),
+    days: int = Query(default=7, ge=1, le=90),
+) -> dict[str, object]:
+    """
+    Get daily lead volume trend for the last N days.
+
+    Requires: x-admin-token header with correct admin token.
+    Query params: days (default 7, range 1..90).
+    Returns: date/count series ordered by date ascending.
+    """
+    _check_admin_token(x_admin_token)
+    return {
+        "days": days,
+        "series": leads_daily_trend(days=days),
+    }
+
+
+@app.get("/admin/appointments/trends")
+def admin_appointments_trends(
+    x_admin_token: str | None = Header(default=None),
+    days: int = Query(default=7, ge=1, le=90),
+) -> dict[str, object]:
+    """
+    Get daily appointment volume trend for the last N days.
+
+    Requires: x-admin-token header with correct admin token.
+    Query params: days (default 7, range 1..90).
+    Returns: date/count series ordered by date ascending.
+    """
+    _check_admin_token(x_admin_token)
+    return {
+        "days": days,
+        "series": appointments_daily_trend(days=days),
     }
 
 
