@@ -46,6 +46,8 @@ The compose setup mounts `./data` into the container so SQLite data persists loc
 - `GET /admin/appointments` (requires `x-admin-token`)
 - `GET /admin/stats` (requires `x-admin-token`) — uses efficient `COUNT(*)` queries
 - `GET /admin/stats/breakdown` (requires `x-admin-token`) — grouped counts by lead intent and appointment status
+- `GET /admin/leads/trends` (requires `x-admin-token`) — daily lead volume trend for last N days
+- `GET /admin/appointments/trends` (requires `x-admin-token`) — daily appointment trend for last N days
 - `GET /admin/rate-limit/{session_id}` (requires `x-admin-token`) — inspect current limiter usage for a session
 - `POST /admin/rate-limit/reset` (requires `x-admin-token`) — reset one session or all limiter counters
 - `GET /admin/leads/export` (requires `x-admin-token`) — download leads as CSV
@@ -73,6 +75,18 @@ Admin list/search/export endpoints enforce validation for pagination and limits:
 - `limit <= 10000`
 
 Invalid values return HTTP `422`.
+
+### Trends endpoints
+
+Both trends endpoints accept `days` in range `1..90` (default `7`) and return a date/count series.
+
+```sh
+# Leads trend for last 14 days
+curl -H "x-admin-token: change-me" "http://localhost:8000/admin/leads/trends?days=14"
+
+# Appointments trend for last 30 days
+curl -H "x-admin-token: change-me" "http://localhost:8000/admin/appointments/trends?days=30"
+```
 
 ### Rate-limit admin controls
 
