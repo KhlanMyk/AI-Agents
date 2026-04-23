@@ -50,6 +50,7 @@ The compose setup mounts `./data` into the container so SQLite data persists loc
 - `GET /admin/appointments/trends` (requires `x-admin-token`) — daily appointment trend for last N days
 - `GET /admin/rate-limit/{session_id}` (requires `x-admin-token`) — inspect current limiter usage for a session
 - `POST /admin/rate-limit/reset` (requires `x-admin-token`) — reset one session or all limiter counters
+- `POST /admin/data/cleanup` (requires `x-admin-token`) — dry-run or execute retention cleanup for old DB records
 - `GET /admin/leads/export` (requires `x-admin-token`) — download leads as CSV
 - `GET /admin/appointments/export` (requires `x-admin-token`) — download appointments as CSV
 - `GET /admin/sessions/active` (requires `x-admin-token`)
@@ -103,6 +104,20 @@ curl -X POST -H "x-admin-token: change-me" -H "content-type: application/json" \
 curl -X POST -H "x-admin-token: change-me" -H "content-type: application/json" \
    http://localhost:8000/admin/rate-limit/reset \
    -d '{}'
+```
+
+### Data retention cleanup
+
+Cleanup endpoint supports dry-run by default and accepts `days` in `1..3650`.
+
+```sh
+# Preview records older than 365 days (no deletion)
+curl -X POST -H "x-admin-token: change-me" \
+   "http://localhost:8000/admin/data/cleanup?days=365&dry_run=true"
+
+# Execute deletion for records older than 365 days
+curl -X POST -H "x-admin-token: change-me" \
+   "http://localhost:8000/admin/data/cleanup?days=365&dry_run=false"
 ```
 
 ## Environment
