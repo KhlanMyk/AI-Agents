@@ -2,6 +2,9 @@ from datetime import timedelta
 from fastapi.testclient import TestClient
 
 from app.api import app
+from app.db import SessionLocal
+from app.models import Appointment, ChatLead
+from app.time_utils import utc_now
 
 ADMIN = {"x-admin-token": "change-me"}
 
@@ -533,3 +536,92 @@ def test_admin_trends_auth_and_validation() -> None:
 
     assert client.get("/admin/leads/trends?days=0", headers=ADMIN).status_code == 422
     assert client.get("/admin/appointments/trends?days=91", headers=ADMIN).status_code == 422
+
+
+def test_admin_data_cleanup_dry_run_reports_candidates_only() -> None:
+    client = TestClient(app)
+
+    old_lead = ChatLead(
+        session_id="cleanup-dry-run-sid",
+        name="Old Lead",
+        contact="old@example.com",
+        message="old lead",
+        intent="greeting",
+        created_at=utc_now() - timedelta(days=400),
+    )
+    old_appt = Appointment(
+        session_id="cleanup-dry-run-sid",
+        patient_name="Old Patient",
+        slot="Monday 10:00",
+        status="confirmed",
+        notes="old appointment",
+        created_at=utc_now() - timedelta(days=400),
+    )
+    with SessionLocal() as db:
+        db.add(old_lead)
+        db.add(old_appt)
+        db.commit()
+        db.refresh(old_lead)
+        db.refresh(old_appt)
+        lead_id = old_lead.id
+        appt_id = old_appt.id
+
+    resp = client.post("/admin/data/cleanup?days=365&dry_run=true", headers=ADMIN)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["dry_run"] is True
+    assert body["leads_candidates"] >= 1
+    assert body["appointments_candidates"] >= 1
+    assert body["leads_deleted"] == 0
+    assert body["appointments_deleted"] == 0
+
+    with SessionLocal() as db:
+        assert db.get(ChatLead, lead_id) is not None
+        assert db.get(Appointment, appt_id) is not None
+
+
+def test_admin_data_cleanup_deletes_old_records() -> None:
+    client = TestClient(app)
+
+    old_lead = ChatLead(
+        session_id="cleanup-exec-sid",
+        name="Exec Lead",
+        contact="exec@example.com",
+        message="to be deleted",
+        intent="greeting",
+        created_at=utc_now() - timedelta(days=500),
+    )
+    old_appt = Appointment(
+        session_id="cleanup-exec-sid",
+        patient_name="Exec Patient",
+        slot="Tuesday 11:00",
+        status="confirmed",
+        notes="to be deleted",
+        created_at=utc_now() - timedelta(days=500),
+    )
+    with SessionLocal() as db:
+        db.add(old_lead)
+        db.add(old_appt)
+        db.commit()
+        db.refresh(old_lead)
+        db.refresh(old_appt)
+        lead_id = old_lead.id
+        appt_id = old_appt.id
+
+    resp = client.post("/admin/data/cleanup?days=365&dry_run=false", headers=ADMIN)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["dry_run"] is False
+    assert body["leads_deleted"] >= 1
+    assert body["appointments_deleted"] >= 1
+
+    with SessionLocal() as db:
+        assert db.get(ChatLead, lead_id) is None
+        assert db.get(Appointment, appt_id) is None
+
+
+def test_admin_data_cleanup_requires_admin_and_valid_days() -> None:
+    client = TestClient(app)
+    assert client.post("/admin/data/cleanup?days=365").status_code == 401
+    assert client.post("/admin/data/cleanup?days=0", headers=ADMIN).status_code == 422
+    assert client.post("/admin/data/cleanup?days=3651", headers=ADMIN).status_code == 422
