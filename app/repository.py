@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Dict, List, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from app.cache import cache_with_ttl, invalidate_cache
 from app.db import SessionLocal
@@ -150,6 +150,52 @@ def appointments_daily_trend(days: int = 7) -> List[Dict[str, int | str]]:
             .order_by(func.date(Appointment.created_at))
         ).all()
     return [{"date": str(day), "count": int(count)} for day, count in rows]
+
+
+def cleanup_old_records(days: int = 90, dry_run: bool = True) -> Dict[str, int | bool]:
+    """
+    Remove records older than the specified number of days.
+
+    Args:
+        days: retention window in days (records older than this are candidates)
+        dry_run: when True, only report candidate counts without deleting
+
+    Returns:
+        Summary containing candidate/deleted counts for leads and appointments.
+    """
+    cutoff = utc_now() - timedelta(days=max(1, days))
+
+    with SessionLocal() as db:
+        leads_candidates = db.execute(
+            select(func.count()).select_from(ChatLead).where(ChatLead.created_at < cutoff)
+        ).scalar_one()
+        appointments_candidates = db.execute(
+            select(func.count()).select_from(Appointment).where(Appointment.created_at < cutoff)
+        ).scalar_one()
+
+        if dry_run:
+            return {
+                "dry_run": True,
+                "leads_candidates": int(leads_candidates),
+                "appointments_candidates": int(appointments_candidates),
+                "leads_deleted": 0,
+                "appointments_deleted": 0,
+            }
+
+        leads_result = db.execute(delete(ChatLead).where(ChatLead.created_at < cutoff))
+        appts_result = db.execute(delete(Appointment).where(Appointment.created_at < cutoff))
+        db.commit()
+
+    invalidate_cache(LEADS_CACHE_NAMESPACE)
+    invalidate_cache(APPOINTMENTS_CACHE_NAMESPACE)
+
+    return {
+        "dry_run": False,
+        "leads_candidates": int(leads_candidates),
+        "appointments_candidates": int(appointments_candidates),
+        "leads_deleted": int(leads_result.rowcount or 0),
+        "appointments_deleted": int(appts_result.rowcount or 0),
+    }
 
 
 def update_appointment_status(appointment_id: int, new_status: str) -> Optional[Appointment]:

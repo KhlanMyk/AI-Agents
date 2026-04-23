@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Dict
 from uuid import uuid4
@@ -20,6 +20,7 @@ from app.config import ADMIN_TOKEN, CORS_ORIGINS
 from app.db import init_db, SessionLocal
 from app.repository import (
     appointments_daily_trend,
+    cleanup_old_records,
     count_appointments_by_status,
     count_appointments,
     count_leads_by_intent,
@@ -322,6 +323,33 @@ def admin_rate_limit_reset(
         "session_id": payload.session_id,
         "removed_sessions": result["removed_sessions"],
         "removed_requests": result["removed_requests"],
+    }
+
+
+@app.post("/admin/data/cleanup")
+def admin_data_cleanup(
+    x_admin_token: str | None = Header(default=None),
+    days: int = Query(default=90, ge=1, le=3650),
+    dry_run: bool = True,
+) -> dict[str, int | bool | str]:
+    """
+    Cleanup database records older than a retention window (admin endpoint).
+
+    Requires: x-admin-token header with correct admin token.
+    Query params:
+    - days: retention threshold (default 90)
+    - dry_run: when true, only reports candidate counts
+    """
+    _check_admin_token(x_admin_token)
+    result = cleanup_old_records(days=days, dry_run=dry_run)
+    return {
+        "days": days,
+        "cutoff": (datetime.now(UTC) - timedelta(days=days)).isoformat(),
+        "dry_run": bool(result["dry_run"]),
+        "leads_candidates": int(result["leads_candidates"]),
+        "appointments_candidates": int(result["appointments_candidates"]),
+        "leads_deleted": int(result["leads_deleted"]),
+        "appointments_deleted": int(result["appointments_deleted"]),
     }
 
 
