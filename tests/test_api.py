@@ -77,6 +77,35 @@ def test_admin_appointments_pagination() -> None:
     assert len(resp.json()) <= 1
 
 
+def test_admin_appointments_search_filters_results() -> None:
+    client = TestClient(app)
+
+    r = client.post("/chat", json={"message": "hi, my name is SearchAlice"})
+    sid = r.json()["session_id"]
+    client.post("/chat", json={"message": "book appointment", "session_id": sid})
+    client.post("/chat", json={"message": "confirm appointment", "session_id": sid})
+
+    items = client.get(
+        f"/admin/appointments/search?session_id={sid}&status=confirmed",
+        headers=ADMIN,
+    )
+    assert items.status_code == 200
+    results = items.json()
+    assert isinstance(results, list)
+    assert any(item["session_id"] == sid for item in results)
+    assert all(item["status"] == "confirmed" for item in results)
+
+
+def test_admin_appointments_search_requires_admin_token() -> None:
+    client = TestClient(app)
+    assert client.get("/admin/appointments/search").status_code == 401
+
+
+def test_admin_appointments_search_limit_validation() -> None:
+    client = TestClient(app)
+    assert client.get("/admin/appointments/search?limit=0", headers=ADMIN).status_code == 422
+
+
 def test_admin_leads_search_by_intent() -> None:
     """Search leads by intent returns a list (may be empty if no match)."""
     client = TestClient(app)
