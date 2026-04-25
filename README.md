@@ -44,6 +44,7 @@ The compose setup mounts `./data` into the container so SQLite data persists loc
 - `POST /reset`
 - `GET /admin/leads` (requires `x-admin-token`)
 - `GET /admin/appointments` (requires `x-admin-token`)
+- `GET /admin/appointments/search` (requires `x-admin-token`) — filter appointments by session, status, patient name, or slot
 - `GET /admin/stats` (requires `x-admin-token`) — uses efficient `COUNT(*)` queries
 - `GET /admin/stats/breakdown` (requires `x-admin-token`) — grouped counts by lead intent and appointment status
 - `GET /admin/leads/trends` (requires `x-admin-token`) — daily lead volume trend for last N days
@@ -76,6 +77,20 @@ Admin list/search/export endpoints enforce validation for pagination and limits:
 - `limit <= 10000`
 
 Invalid values return HTTP `422`.
+
+### Appointment search
+
+The appointment search endpoint accepts any combination of `session_id`, `status`, `patient_name`, `slot`, and `limit`.
+
+```sh
+# Find confirmed appointments for one chat session
+curl -H "x-admin-token: change-me" \
+   "http://localhost:8000/admin/appointments/search?session_id=<session_id>&status=confirmed"
+
+# Find appointments matching a patient name fragment
+curl -H "x-admin-token: change-me" \
+   "http://localhost:8000/admin/appointments/search?patient_name=alice"
+```
 
 ### Trends endpoints
 
