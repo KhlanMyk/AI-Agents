@@ -56,6 +56,29 @@ def search_leads(intent: Optional[str] = None, name: Optional[str] = None, limit
         return list(rows)
 
 
+@cache_with_ttl(ttl_seconds=30, namespace=APPOINTMENTS_CACHE_NAMESPACE)
+def search_appointments(
+    session_id: Optional[str] = None,
+    status: Optional[str] = None,
+    patient_name: Optional[str] = None,
+    slot: Optional[str] = None,
+    limit: int = 100,
+) -> List[Appointment]:
+    """Filter appointments by status and/or patient/slot text."""
+    with SessionLocal() as db:
+        stmt = select(Appointment).order_by(Appointment.id.desc())
+        if session_id:
+            stmt = stmt.where(Appointment.session_id == session_id)
+        if status:
+            stmt = stmt.where(Appointment.status == status)
+        if patient_name:
+            stmt = stmt.where(Appointment.patient_name.ilike(f"%{patient_name}%"))
+        if slot:
+            stmt = stmt.where(Appointment.slot.ilike(f"%{slot}%"))
+        rows = db.execute(stmt.limit(limit)).scalars().all()
+        return list(rows)
+
+
 def create_appointment(session_id: str, patient_name: str, slot: str, notes: str = "") -> Appointment:
     with SessionLocal() as db:
         item = Appointment(

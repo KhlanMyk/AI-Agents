@@ -32,6 +32,7 @@ from app.repository import (
     list_leads,
     leads_daily_trend,
     save_lead,
+    search_appointments,
     search_leads,
     update_appointment_status,
 )
@@ -396,6 +397,43 @@ def admin_appointments(
     """
     _check_admin_token(x_admin_token)
     rows = list_appointments(limit=limit, offset=offset)
+    return [
+        {
+            "id": str(r.id),
+            "session_id": r.session_id,
+            "patient_name": r.patient_name,
+            "slot": r.slot,
+            "status": r.status,
+            "created_at": r.created_at.isoformat(),
+        }
+        for r in rows
+    ]
+
+
+@app.get("/admin/appointments/search")
+def admin_appointments_search(
+    x_admin_token: str | None = Header(default=None),
+    session_id: str | None = None,
+    status: str | None = None,
+    patient_name: str | None = None,
+    slot: str | None = None,
+    limit: int = Query(default=50, ge=1, le=10000),
+) -> list[dict[str, str]]:
+    """
+    Search appointments by status, patient name, or slot text (admin endpoint).
+
+    Requires: x-admin-token header with correct admin token.
+    Query params: session_id, status, patient_name, slot, limit.
+    Returns: Filtered list of appointments ordered newest first.
+    """
+    _check_admin_token(x_admin_token)
+    rows = search_appointments(
+        session_id=session_id,
+        status=status,
+        patient_name=patient_name,
+        slot=slot,
+        limit=limit,
+    )
     return [
         {
             "id": str(r.id),
