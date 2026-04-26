@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 from sqlalchemy import delete, func, select
@@ -77,6 +77,56 @@ def search_appointments(
             stmt = stmt.where(Appointment.slot.ilike(f"%{slot}%"))
         rows = db.execute(stmt.limit(limit)).scalars().all()
         return list(rows)
+
+
+def list_recent_activity(limit: int = 50) -> List[Dict[str, str]]:
+    """Return a combined, newest-first timeline of leads and appointments."""
+    with SessionLocal() as db:
+        leads = db.execute(
+            select(ChatLead)
+            .order_by(ChatLead.created_at.desc())
+            .limit(limit)
+        ).scalars().all()
+        appointments = db.execute(
+            select(Appointment)
+            .order_by(Appointment.created_at.desc())
+            .limit(limit)
+        ).scalars().all()
+
+    timeline: List[tuple[datetime, Dict[str, str]]] = []
+
+    for lead in leads:
+        timeline.append(
+            (
+                lead.created_at,
+                {
+                    "entity_type": "lead",
+                    "id": str(lead.id),
+                    "session_id": lead.session_id,
+                    "created_at": lead.created_at.isoformat(),
+                    "summary": lead.message,
+                    "intent": lead.intent,
+                },
+            )
+        )
+
+    for appt in appointments:
+        timeline.append(
+            (
+                appt.created_at,
+                {
+                    "entity_type": "appointment",
+                    "id": str(appt.id),
+                    "session_id": appt.session_id,
+                    "created_at": appt.created_at.isoformat(),
+                    "summary": appt.slot,
+                    "status": appt.status,
+                },
+            )
+        )
+
+    timeline.sort(key=lambda row: row[0], reverse=True)
+    return [item for _, item in timeline[:limit]]
 
 
 def create_appointment(session_id: str, patient_name: str, slot: str, notes: str = "") -> Appointment:

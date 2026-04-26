@@ -30,6 +30,7 @@ from app.repository import (
     get_lead_by_id,
     list_appointments,
     list_leads,
+    list_recent_activity,
     leads_daily_trend,
     save_lead,
     search_appointments,
@@ -445,6 +446,26 @@ def admin_appointments_search(
         }
         for r in rows
     ]
+
+
+@app.get("/admin/activity/recent")
+def admin_recent_activity(
+    x_admin_token: str | None = Header(default=None),
+    limit: int = Query(default=50, ge=1, le=500),
+) -> dict[str, object]:
+    """
+    Get a newest-first combined timeline of recent leads and appointments.
+
+    Requires: x-admin-token header with correct admin token.
+    Query params: limit (default 50, range 1..500).
+    """
+    _check_admin_token(x_admin_token)
+    items = list_recent_activity(limit=limit)
+    return {
+        "requested": limit,
+        "returned": len(items),
+        "items": items,
+    }
 
 
 @app.get("/admin/stats")
