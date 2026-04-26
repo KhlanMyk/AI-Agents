@@ -106,6 +106,32 @@ def test_admin_appointments_search_limit_validation() -> None:
     assert client.get("/admin/appointments/search?limit=0", headers=ADMIN).status_code == 422
 
 
+def test_admin_recent_activity_endpoint_returns_combined_items() -> None:
+    client = TestClient(app)
+
+    r = client.post("/chat", json={"message": "activity timeline hello"})
+    sid = r.json()["session_id"]
+    client.post("/chat", json={"message": "book appointment", "session_id": sid})
+    client.post("/chat", json={"message": "confirm appointment", "session_id": sid})
+
+    resp = client.get("/admin/activity/recent?limit=20", headers=ADMIN)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["requested"] == 20
+    assert body["returned"] <= 20
+    assert isinstance(body["items"], list)
+    assert any(item["entity_type"] == "lead" for item in body["items"])
+    assert any(item["entity_type"] == "appointment" for item in body["items"])
+    assert any(item["session_id"] == sid for item in body["items"])
+
+
+def test_admin_recent_activity_requires_admin_and_valid_limit() -> None:
+    client = TestClient(app)
+    assert client.get("/admin/activity/recent").status_code == 401
+    assert client.get("/admin/activity/recent?limit=0", headers=ADMIN).status_code == 422
+    assert client.get("/admin/activity/recent?limit=501", headers=ADMIN).status_code == 422
+
+
 def test_admin_leads_search_by_intent() -> None:
     """Search leads by intent returns a list (may be empty if no match)."""
     client = TestClient(app)
