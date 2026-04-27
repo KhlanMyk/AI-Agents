@@ -45,7 +45,7 @@ The compose setup mounts `./data` into the container so SQLite data persists loc
 - `GET /admin/leads` (requires `x-admin-token`)
 - `GET /admin/appointments` (requires `x-admin-token`)
 - `GET /admin/appointments/search` (requires `x-admin-token`) — filter appointments by session, status, patient name, or slot
-- `GET /admin/activity/recent` (requires `x-admin-token`) — combined newest-first timeline of leads and appointments
+- `GET /admin/activity/recent` (requires `x-admin-token`) — combined newest-first timeline of leads and appointments with optional filters
 - `GET /admin/stats` (requires `x-admin-token`) — uses efficient `COUNT(*)` queries
 - `GET /admin/stats/breakdown` (requires `x-admin-token`) — grouped counts by lead intent and appointment status
 - `GET /admin/leads/trends` (requires `x-admin-token`) — daily lead volume trend for last N days
@@ -96,10 +96,15 @@ curl -H "x-admin-token: change-me" \
 ### Recent activity timeline
 
 Returns a merged stream of recent leads and appointments sorted by creation time.
+Supports optional filters: `entity_type=lead|appointment`, `session_id`, and `limit`.
 
 ```sh
 curl -H "x-admin-token: change-me" \
    "http://localhost:8000/admin/activity/recent?limit=50"
+
+# Only lead events for a specific session
+curl -H "x-admin-token: change-me" \
+   "http://localhost:8000/admin/activity/recent?entity_type=lead&session_id=<session_id>&limit=20"
 ```
 
 ### Trends endpoints
