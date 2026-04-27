@@ -132,6 +132,41 @@ def test_admin_recent_activity_requires_admin_and_valid_limit() -> None:
     assert client.get("/admin/activity/recent?limit=501", headers=ADMIN).status_code == 422
 
 
+def test_admin_recent_activity_filters_by_entity_type_and_session() -> None:
+    client = TestClient(app)
+
+    r = client.post("/chat", json={"message": "activity filter hello"})
+    sid = r.json()["session_id"]
+    client.post("/chat", json={"message": "book appointment", "session_id": sid})
+    client.post("/chat", json={"message": "confirm appointment", "session_id": sid})
+
+    leads_only = client.get(
+        f"/admin/activity/recent?entity_type=lead&session_id={sid}&limit=20",
+        headers=ADMIN,
+    )
+    assert leads_only.status_code == 200
+    leads_items = leads_only.json()["items"]
+    assert len(leads_items) >= 1
+    assert all(item["entity_type"] == "lead" for item in leads_items)
+    assert all(item["session_id"] == sid for item in leads_items)
+
+    appts_only = client.get(
+        f"/admin/activity/recent?entity_type=appointment&session_id={sid}&limit=20",
+        headers=ADMIN,
+    )
+    assert appts_only.status_code == 200
+    appt_items = appts_only.json()["items"]
+    assert len(appt_items) >= 1
+    assert all(item["entity_type"] == "appointment" for item in appt_items)
+    assert all(item["session_id"] == sid for item in appt_items)
+
+
+def test_admin_recent_activity_invalid_session_id_validation() -> None:
+    client = TestClient(app)
+    resp = client.get("/admin/activity/recent?session_id=bad$id", headers=ADMIN)
+    assert resp.status_code == 422
+
+
 def test_admin_leads_search_by_intent() -> None:
     """Search leads by intent returns a list (may be empty if no match)."""
     client = TestClient(app)
