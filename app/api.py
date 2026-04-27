@@ -452,17 +452,32 @@ def admin_appointments_search(
 def admin_recent_activity(
     x_admin_token: str | None = Header(default=None),
     limit: int = Query(default=50, ge=1, le=500),
+    entity_type: str | None = Query(default=None, pattern="^(lead|appointment)$"),
+    session_id: str | None = None,
 ) -> dict[str, object]:
     """
     Get a newest-first combined timeline of recent leads and appointments.
 
     Requires: x-admin-token header with correct admin token.
-    Query params: limit (default 50, range 1..500).
+    Query params: limit (default 50, range 1..500), entity_type, session_id.
     """
     _check_admin_token(x_admin_token)
-    items = list_recent_activity(limit=limit)
+    if session_id is not None:
+        cleaned_session_id = session_id.strip()
+        if len(cleaned_session_id) > 64 or not re.fullmatch(r"[A-Za-z0-9\-]+", cleaned_session_id):
+            raise HTTPException(status_code=422, detail="invalid session_id format")
+    else:
+        cleaned_session_id = None
+
+    items = list_recent_activity(
+        limit=limit,
+        entity_type=entity_type,
+        session_id=cleaned_session_id,
+    )
     return {
         "requested": limit,
+        "entity_type": entity_type,
+        "session_id": cleaned_session_id,
         "returned": len(items),
         "items": items,
     }

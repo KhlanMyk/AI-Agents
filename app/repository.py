@@ -79,8 +79,12 @@ def search_appointments(
         return list(rows)
 
 
-def list_recent_activity(limit: int = 50) -> List[Dict[str, str]]:
-    """Return a combined, newest-first timeline of leads and appointments."""
+def list_recent_activity(
+    limit: int = 50,
+    entity_type: str | None = None,
+    session_id: str | None = None,
+) -> List[Dict[str, str]]:
+    """Return a filtered, newest-first timeline of leads and appointments."""
     with SessionLocal() as db:
         leads = db.execute(
             select(ChatLead)
@@ -126,7 +130,14 @@ def list_recent_activity(limit: int = 50) -> List[Dict[str, str]]:
         )
 
     timeline.sort(key=lambda row: row[0], reverse=True)
-    return [item for _, item in timeline[:limit]]
+    filtered = [item for _, item in timeline]
+
+    if entity_type:
+        filtered = [item for item in filtered if item["entity_type"] == entity_type]
+    if session_id:
+        filtered = [item for item in filtered if item["session_id"] == session_id]
+
+    return filtered[:limit]
 
 
 def create_appointment(session_id: str, patient_name: str, slot: str, notes: str = "") -> Appointment:
