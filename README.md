@@ -46,6 +46,7 @@ The compose setup mounts `./data` into the container so SQLite data persists loc
 - `GET /admin/appointments` (requires `x-admin-token`)
 - `GET /admin/appointments/search` (requires `x-admin-token`) — filter appointments by session, status, patient name, or slot
 - `GET /admin/activity/recent` (requires `x-admin-token`) — combined newest-first timeline of leads and appointments with optional filters
+- `GET /admin/activity/export` (requires `x-admin-token`) — export filtered recent activity timeline as CSV
 - `GET /admin/stats` (requires `x-admin-token`) — uses efficient `COUNT(*)` queries
 - `GET /admin/stats/breakdown` (requires `x-admin-token`) — grouped counts by lead intent and appointment status
 - `GET /admin/leads/trends` (requires `x-admin-token`) — daily lead volume trend for last N days
@@ -68,6 +69,9 @@ curl -H "x-admin-token: change-me" http://localhost:8000/admin/leads/export -o l
 
 # Download all appointments
 curl -H "x-admin-token: change-me" http://localhost:8000/admin/appointments/export -o appointments.csv
+
+# Download filtered activity timeline as CSV
+curl -H "x-admin-token: change-me" "http://localhost:8000/admin/activity/export?entity_type=lead&limit=100" -o activity.csv
 ```
 
 ### Query validation
