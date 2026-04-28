@@ -483,6 +483,56 @@ def admin_recent_activity(
     }
 
 
+@app.get("/admin/activity/export")
+def admin_recent_activity_export_csv(
+    x_admin_token: str | None = Header(default=None),
+    limit: int = Query(default=200, ge=1, le=2000),
+    entity_type: str | None = Query(default=None, pattern="^(lead|appointment)$"),
+    session_id: str | None = None,
+) -> StreamingResponse:
+    """
+    Export filtered recent activity timeline as CSV.
+
+    Requires: x-admin-token header with correct admin token.
+    Query params: limit, entity_type, session_id.
+    """
+    _check_admin_token(x_admin_token)
+    if session_id is not None:
+        cleaned_session_id = session_id.strip()
+        if len(cleaned_session_id) > 64 or not re.fullmatch(r"[A-Za-z0-9\-]+", cleaned_session_id):
+            raise HTTPException(status_code=422, detail="invalid session_id format")
+    else:
+        cleaned_session_id = None
+
+    items = list_recent_activity(
+        limit=limit,
+        entity_type=entity_type,
+        session_id=cleaned_session_id,
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["entity_type", "id", "session_id", "created_at", "summary", "intent", "status"])
+    for item in items:
+        writer.writerow([
+            item.get("entity_type", ""),
+            item.get("id", ""),
+            item.get("session_id", ""),
+            item.get("created_at", ""),
+            item.get("summary", ""),
+            item.get("intent", ""),
+            item.get("status", ""),
+        ])
+
+    output.seek(0)
+    filename = f"activity_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @app.get("/admin/stats")
 def admin_stats(x_admin_token: str | None = Header(default=None)) -> dict[str, int]:
     """
