@@ -167,6 +167,38 @@ def test_admin_recent_activity_invalid_session_id_validation() -> None:
     assert resp.status_code == 422
 
 
+def test_admin_activity_export_csv_with_filters() -> None:
+    client = TestClient(app)
+
+    r = client.post("/chat", json={"message": "activity export hello"})
+    sid = r.json()["session_id"]
+    client.post("/chat", json={"message": "book appointment", "session_id": sid})
+    client.post("/chat", json={"message": "confirm appointment", "session_id": sid})
+
+    resp = client.get(
+        f"/admin/activity/export?entity_type=lead&session_id={sid}&limit=20",
+        headers=ADMIN,
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    disposition = resp.headers.get("content-disposition", "")
+    assert "attachment" in disposition
+    assert "activity_" in disposition
+
+    lines = resp.text.strip().splitlines()
+    assert lines[0] == "entity_type,id,session_id,created_at,summary,intent,status"
+    assert len(lines) >= 2
+    # data rows should only contain lead rows because of filter
+    assert all(line.startswith("lead,") for line in lines[1:])
+
+
+def test_admin_activity_export_requires_admin_and_valid_limit() -> None:
+    client = TestClient(app)
+    assert client.get("/admin/activity/export").status_code == 401
+    assert client.get("/admin/activity/export?limit=0", headers=ADMIN).status_code == 422
+    assert client.get("/admin/activity/export?limit=2001", headers=ADMIN).status_code == 422
+
+
 def test_admin_leads_search_by_intent() -> None:
     """Search leads by intent returns a list (may be empty if no match)."""
     client = TestClient(app)
