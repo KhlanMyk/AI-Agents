@@ -452,6 +452,7 @@ def admin_appointments_search(
 def admin_recent_activity(
     x_admin_token: str | None = Header(default=None),
     limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0, le=10000),
     entity_type: str | None = Query(default=None, pattern="^(lead|appointment)$"),
     session_id: str | None = None,
 ) -> dict[str, object]:
@@ -459,7 +460,7 @@ def admin_recent_activity(
     Get a newest-first combined timeline of recent leads and appointments.
 
     Requires: x-admin-token header with correct admin token.
-    Query params: limit (default 50, range 1..500), entity_type, session_id.
+    Query params: limit (default 50, range 1..500), offset, entity_type, session_id.
     """
     _check_admin_token(x_admin_token)
     if session_id is not None:
@@ -471,11 +472,13 @@ def admin_recent_activity(
 
     items = list_recent_activity(
         limit=limit,
+        offset=offset,
         entity_type=entity_type,
         session_id=cleaned_session_id,
     )
     return {
         "requested": limit,
+        "offset": offset,
         "entity_type": entity_type,
         "session_id": cleaned_session_id,
         "returned": len(items),
@@ -487,6 +490,7 @@ def admin_recent_activity(
 def admin_recent_activity_export_csv(
     x_admin_token: str | None = Header(default=None),
     limit: int = Query(default=200, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0, le=10000),
     entity_type: str | None = Query(default=None, pattern="^(lead|appointment)$"),
     session_id: str | None = None,
 ) -> StreamingResponse:
@@ -494,7 +498,7 @@ def admin_recent_activity_export_csv(
     Export filtered recent activity timeline as CSV.
 
     Requires: x-admin-token header with correct admin token.
-    Query params: limit, entity_type, session_id.
+    Query params: limit, offset, entity_type, session_id.
     """
     _check_admin_token(x_admin_token)
     if session_id is not None:
@@ -506,6 +510,7 @@ def admin_recent_activity_export_csv(
 
     items = list_recent_activity(
         limit=limit,
+        offset=offset,
         entity_type=entity_type,
         session_id=cleaned_session_id,
     )
