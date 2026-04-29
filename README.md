@@ -100,7 +100,7 @@ curl -H "x-admin-token: change-me" \
 ### Recent activity timeline
 
 Returns a merged stream of recent leads and appointments sorted by creation time.
-Supports optional filters: `entity_type=lead|appointment`, `session_id`, and `limit`.
+Supports optional filters: `entity_type=lead|appointment`, `session_id`, `limit`, and `offset`.
 
 ```sh
 curl -H "x-admin-token: change-me" \
@@ -109,6 +109,10 @@ curl -H "x-admin-token: change-me" \
 # Only lead events for a specific session
 curl -H "x-admin-token: change-me" \
    "http://localhost:8000/admin/activity/recent?entity_type=lead&session_id=<session_id>&limit=20"
+
+# Next page using offset pagination
+curl -H "x-admin-token: change-me" \
+   "http://localhost:8000/admin/activity/recent?limit=20&offset=20"
 ```
 
 ### Trends endpoints
