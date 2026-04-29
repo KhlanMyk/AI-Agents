@@ -130,6 +130,7 @@ def test_admin_recent_activity_requires_admin_and_valid_limit() -> None:
     assert client.get("/admin/activity/recent").status_code == 401
     assert client.get("/admin/activity/recent?limit=0", headers=ADMIN).status_code == 422
     assert client.get("/admin/activity/recent?limit=501", headers=ADMIN).status_code == 422
+    assert client.get("/admin/activity/recent?offset=-1", headers=ADMIN).status_code == 422
 
 
 def test_admin_recent_activity_filters_by_entity_type_and_session() -> None:
@@ -197,6 +198,40 @@ def test_admin_activity_export_requires_admin_and_valid_limit() -> None:
     assert client.get("/admin/activity/export").status_code == 401
     assert client.get("/admin/activity/export?limit=0", headers=ADMIN).status_code == 422
     assert client.get("/admin/activity/export?limit=2001", headers=ADMIN).status_code == 422
+    assert client.get("/admin/activity/export?offset=-1", headers=ADMIN).status_code == 422
+
+
+def test_admin_recent_activity_offset_pagination() -> None:
+    client = TestClient(app)
+
+    # Seed several events for one session
+    r = client.post("/chat", json={"message": "offset page one"})
+    sid = r.json()["session_id"]
+    client.post("/chat", json={"message": "offset page two", "session_id": sid})
+    client.post("/chat", json={"message": "book appointment", "session_id": sid})
+    client.post("/chat", json={"message": "confirm appointment", "session_id": sid})
+
+    first = client.get(
+        f"/admin/activity/recent?session_id={sid}&limit=2&offset=0",
+        headers=ADMIN,
+    )
+    second = client.get(
+        f"/admin/activity/recent?session_id={sid}&limit=2&offset=2",
+        headers=ADMIN,
+    )
+    assert first.status_code == 200
+    assert second.status_code == 200
+
+    first_items = first.json()["items"]
+    second_items = second.json()["items"]
+    assert len(first_items) <= 2
+    assert len(second_items) <= 2
+
+    # If both pages have data, their ids should not overlap
+    if first_items and second_items:
+        first_ids = {item["entity_type"] + ":" + item["id"] for item in first_items}
+        second_ids = {item["entity_type"] + ":" + item["id"] for item in second_items}
+        assert first_ids.isdisjoint(second_ids)
 
 
 def test_admin_leads_search_by_intent() -> None:
