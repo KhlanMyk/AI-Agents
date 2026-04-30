@@ -21,6 +21,7 @@ from app.db import init_db, SessionLocal
 from app.repository import (
     appointments_daily_trend,
     cleanup_old_records,
+    count_recent_activity,
     count_appointments_by_status,
     count_appointments,
     count_leads_by_intent,
@@ -476,11 +477,16 @@ def admin_recent_activity(
         entity_type=entity_type,
         session_id=cleaned_session_id,
     )
+    total_matching = count_recent_activity(
+        entity_type=entity_type,
+        session_id=cleaned_session_id,
+    )
     return {
         "requested": limit,
         "offset": offset,
         "entity_type": entity_type,
         "session_id": cleaned_session_id,
+        "total_matching": total_matching,
         "returned": len(items),
         "items": items,
     }
@@ -514,6 +520,10 @@ def admin_recent_activity_export_csv(
         entity_type=entity_type,
         session_id=cleaned_session_id,
     )
+    total_matching = count_recent_activity(
+        entity_type=entity_type,
+        session_id=cleaned_session_id,
+    )
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -534,7 +544,10 @@ def admin_recent_activity_export_csv(
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "X-Total-Count": str(total_matching),
+        },
     )
 
 

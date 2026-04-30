@@ -142,6 +142,29 @@ def list_recent_activity(
     return filtered[offset: offset + limit]
 
 
+def count_recent_activity(
+    entity_type: str | None = None,
+    session_id: str | None = None,
+) -> int:
+    """Return total number of recent activity items matching filters."""
+    with SessionLocal() as db:
+        lead_stmt = select(func.count()).select_from(ChatLead)
+        appt_stmt = select(func.count()).select_from(Appointment)
+
+        if session_id:
+            lead_stmt = lead_stmt.where(ChatLead.session_id == session_id)
+            appt_stmt = appt_stmt.where(Appointment.session_id == session_id)
+
+        if entity_type == "lead":
+            return int(db.execute(lead_stmt).scalar_one())
+        if entity_type == "appointment":
+            return int(db.execute(appt_stmt).scalar_one())
+
+        lead_count = int(db.execute(lead_stmt).scalar_one())
+        appt_count = int(db.execute(appt_stmt).scalar_one())
+        return lead_count + appt_count
+
+
 def create_appointment(session_id: str, patient_name: str, slot: str, notes: str = "") -> Appointment:
     with SessionLocal() as db:
         item = Appointment(
