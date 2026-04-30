@@ -118,6 +118,8 @@ def test_admin_recent_activity_endpoint_returns_combined_items() -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["requested"] == 20
+    assert "total_matching" in body
+    assert body["total_matching"] >= body["returned"]
     assert body["returned"] <= 20
     assert isinstance(body["items"], list)
     assert any(item["entity_type"] == "lead" for item in body["items"])
@@ -182,6 +184,7 @@ def test_admin_activity_export_csv_with_filters() -> None:
     )
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("text/csv")
+    assert int(resp.headers.get("x-total-count", "0")) >= 1
     disposition = resp.headers.get("content-disposition", "")
     assert "attachment" in disposition
     assert "activity_" in disposition
@@ -224,6 +227,8 @@ def test_admin_recent_activity_offset_pagination() -> None:
 
     first_items = first.json()["items"]
     second_items = second.json()["items"]
+    assert first.json()["total_matching"] >= len(first_items)
+    assert second.json()["total_matching"] >= len(second_items)
     assert len(first_items) <= 2
     assert len(second_items) <= 2
 
