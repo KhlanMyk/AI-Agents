@@ -72,6 +72,8 @@ curl -H "x-admin-token: change-me" http://localhost:8000/admin/appointments/expo
 
 # Download filtered activity timeline as CSV
 curl -H "x-admin-token: change-me" "http://localhost:8000/admin/activity/export?entity_type=lead&limit=100" -o activity.csv
+
+# Response includes X-Total-Count header
 ```
 
 ### Query validation
@@ -101,6 +103,7 @@ curl -H "x-admin-token: change-me" \
 
 Returns a merged stream of recent leads and appointments sorted by creation time.
 Supports optional filters: `entity_type=lead|appointment`, `session_id`, `limit`, and `offset`.
+JSON response includes `total_matching` for pagination-aware clients.
 
 ```sh
 curl -H "x-admin-token: change-me" \
