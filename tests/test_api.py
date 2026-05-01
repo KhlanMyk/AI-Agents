@@ -14,6 +14,15 @@ def test_health_ok() -> None:
     resp = client.get("/health")
     assert resp.status_code == 200
     assert resp.json()["status"] == "ok"
+    # CORS header should not be present without Origin
+    assert "access-control-allow-origin" not in resp.headers
+
+    # CORS header should be present with Origin
+    resp_cors = client.get("/health", headers={"Origin": "http://localhost:3000"})
+    assert resp_cors.status_code == 200
+    cors_value = resp_cors.headers["access-control-allow-origin"]
+    # Accept either '*' or the specific Origin value
+    assert cors_value == "*" or cors_value == "http://localhost:3000"
 
 
 def test_chat_flow_and_persistence() -> None:
