@@ -1,4 +1,5 @@
 from datetime import timedelta
+import pytest
 from fastapi.testclient import TestClient
 
 from app.api import app
@@ -6,11 +7,16 @@ from app.db import SessionLocal
 from app.models import Appointment, ChatLead
 from app.time_utils import utc_now
 
+
 ADMIN = {"x-admin-token": "change-me"}
 
+# --- Fixtures ---
+@pytest.fixture
+def client():
+    return TestClient(app)
 
-def test_health_ok() -> None:
-    client = TestClient(app)
+
+def test_health_ok(client):
     resp = client.get("/health")
     assert resp.status_code == 200
     assert resp.json()["status"] == "ok"
@@ -25,8 +31,7 @@ def test_health_ok() -> None:
     assert cors_value == "*" or cors_value == "http://localhost:3000"
 
 
-def test_chat_flow_and_persistence() -> None:
-    client = TestClient(app)
+def test_chat_flow_and_persistence(client):
 
     r1 = client.post("/chat", json={"message": "hi"})
     assert r1.status_code == 200
@@ -47,20 +52,17 @@ def test_chat_flow_and_persistence() -> None:
     assert isinstance(appts.json(), list)
 
 
-def test_admin_token_required() -> None:
-    client = TestClient(app)
+def test_admin_token_required(client):
     denied = client.get("/admin/leads")
     assert denied.status_code == 401
 
 
-def test_validation_rejects_blank_message() -> None:
-    client = TestClient(app)
+def test_validation_rejects_blank_message(client):
     resp = client.post("/chat", json={"message": "   "})
     assert resp.status_code == 422
 
 
-def test_admin_stats_endpoint() -> None:
-    client = TestClient(app)
+def test_admin_stats_endpoint(client):
     resp = client.get("/admin/stats", headers=ADMIN)
     assert resp.status_code == 200
     body = resp.json()
@@ -68,26 +70,23 @@ def test_admin_stats_endpoint() -> None:
     assert "total_appointments" in body
 
 
-def test_admin_leads_pagination() -> None:
     """limit and offset params return a valid (possibly empty) list."""
-    client = TestClient(app)
+def test_admin_leads_pagination(client):
     resp = client.get("/admin/leads?limit=2&offset=0", headers=ADMIN)
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
     assert len(resp.json()) <= 2
 
 
-def test_admin_appointments_pagination() -> None:
     """Pagination works for appointments endpoint."""
-    client = TestClient(app)
+def test_admin_appointments_pagination(client):
     resp = client.get("/admin/appointments?limit=1&offset=0", headers=ADMIN)
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
     assert len(resp.json()) <= 1
 
 
-def test_admin_appointments_search_filters_results() -> None:
-    client = TestClient(app)
+def test_admin_appointments_search_filters_results(client):
 
     r = client.post("/chat", json={"message": "hi, my name is SearchAlice"})
     sid = r.json()["session_id"]
@@ -105,18 +104,15 @@ def test_admin_appointments_search_filters_results() -> None:
     assert all(item["status"] == "confirmed" for item in results)
 
 
-def test_admin_appointments_search_requires_admin_token() -> None:
-    client = TestClient(app)
+def test_admin_appointments_search_requires_admin_token(client):
     assert client.get("/admin/appointments/search").status_code == 401
 
 
-def test_admin_appointments_search_limit_validation() -> None:
-    client = TestClient(app)
+def test_admin_appointments_search_limit_validation(client):
     assert client.get("/admin/appointments/search?limit=0", headers=ADMIN).status_code == 422
 
 
-def test_admin_recent_activity_endpoint_returns_combined_items() -> None:
-    client = TestClient(app)
+def test_admin_recent_activity_endpoint_returns_combined_items(client):
 
     r = client.post("/chat", json={"message": "activity timeline hello"})
     sid = r.json()["session_id"]
@@ -136,16 +132,14 @@ def test_admin_recent_activity_endpoint_returns_combined_items() -> None:
     assert any(item["session_id"] == sid for item in body["items"])
 
 
-def test_admin_recent_activity_requires_admin_and_valid_limit() -> None:
-    client = TestClient(app)
+def test_admin_recent_activity_requires_admin_and_valid_limit(client):
     assert client.get("/admin/activity/recent").status_code == 401
     assert client.get("/admin/activity/recent?limit=0", headers=ADMIN).status_code == 422
     assert client.get("/admin/activity/recent?limit=501", headers=ADMIN).status_code == 422
     assert client.get("/admin/activity/recent?offset=-1", headers=ADMIN).status_code == 422
 
 
-def test_admin_recent_activity_filters_by_entity_type_and_session() -> None:
-    client = TestClient(app)
+def test_admin_recent_activity_filters_by_entity_type_and_session(client):
 
     r = client.post("/chat", json={"message": "activity filter hello"})
     sid = r.json()["session_id"]
@@ -173,14 +167,12 @@ def test_admin_recent_activity_filters_by_entity_type_and_session() -> None:
     assert all(item["session_id"] == sid for item in appt_items)
 
 
-def test_admin_recent_activity_invalid_session_id_validation() -> None:
-    client = TestClient(app)
+def test_admin_recent_activity_invalid_session_id_validation(client):
     resp = client.get("/admin/activity/recent?session_id=bad$id", headers=ADMIN)
     assert resp.status_code == 422
 
 
-def test_admin_activity_export_csv_with_filters() -> None:
-    client = TestClient(app)
+def test_admin_activity_export_csv_with_filters(client):
 
     r = client.post("/chat", json={"message": "activity export hello"})
     sid = r.json()["session_id"]
@@ -205,16 +197,14 @@ def test_admin_activity_export_csv_with_filters() -> None:
     assert all(line.startswith("lead,") for line in lines[1:])
 
 
-def test_admin_activity_export_requires_admin_and_valid_limit() -> None:
-    client = TestClient(app)
+def test_admin_activity_export_requires_admin_and_valid_limit(client):
     assert client.get("/admin/activity/export").status_code == 401
     assert client.get("/admin/activity/export?limit=0", headers=ADMIN).status_code == 422
     assert client.get("/admin/activity/export?limit=2001", headers=ADMIN).status_code == 422
     assert client.get("/admin/activity/export?offset=-1", headers=ADMIN).status_code == 422
 
 
-def test_admin_recent_activity_offset_pagination() -> None:
-    client = TestClient(app)
+def test_admin_recent_activity_offset_pagination(client):
 
     # Seed several events for one session
     r = client.post("/chat", json={"message": "offset page one"})
@@ -250,7 +240,7 @@ def test_admin_recent_activity_offset_pagination() -> None:
 
 def test_admin_leads_search_by_intent() -> None:
     """Search leads by intent returns a list (may be empty if no match)."""
-    client = TestClient(app)
+def test_admin_leads_search_by_intent(client):
     resp = client.get("/admin/leads/search?intent=greeting", headers=ADMIN)
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
@@ -258,7 +248,7 @@ def test_admin_leads_search_by_intent() -> None:
 
 def test_appointment_status_update() -> None:
     """Patch an appointment's status to 'cancelled', verify 404 for missing id."""
-    client = TestClient(app)
+def test_appointment_status_update(client):
     # Non-existent id should return 404
     resp = client.patch(
         "/admin/appointments/999999/status",
@@ -278,7 +268,7 @@ def test_appointment_status_update() -> None:
 
 def test_session_cleanup_returns_counts() -> None:
     """Cleanup endpoint returns cleaned count even when no sessions expired."""
-    client = TestClient(app)
+def test_session_cleanup_returns_counts(client):
     resp = client.post("/admin/sessions/cleanup", headers=ADMIN)
     assert resp.status_code == 200
     body = resp.json()
@@ -289,7 +279,7 @@ def test_session_cleanup_returns_counts() -> None:
 
 def test_chat_history_export() -> None:
     """Export endpoint returns history for a valid session."""
-    client = TestClient(app)
+def test_chat_history_export(client):
     r = client.post("/chat", json={"message": "hello"})
     sid = r.json()["session_id"]
 
@@ -302,7 +292,7 @@ def test_chat_history_export() -> None:
 
 def test_export_unknown_session_returns_404() -> None:
     """Export for unknown session returns 404."""
-    client = TestClient(app)
+def test_export_unknown_session_returns_404(client):
     resp = client.get("/export/totally-unknown-session-xyz")
     assert resp.status_code == 404
 
@@ -312,7 +302,7 @@ def test_export_unknown_session_returns_404() -> None:
 
 def test_chat_response_includes_confidence() -> None:
     """Every chat response includes a non-null confidence score 0–1."""
-    client = TestClient(app)
+def test_chat_response_includes_confidence(client):
     resp = client.post("/chat", json={"message": "hello"})
     body = resp.json()
     assert "confidence" in body
@@ -322,14 +312,14 @@ def test_chat_response_includes_confidence() -> None:
 
 def test_high_confidence_on_clear_intent() -> None:
     """Unambiguous messages like 'what are your prices?' get confidence >= 0.88."""
-    client = TestClient(app)
+def test_high_confidence_on_clear_intent(client):
     resp = client.post("/chat", json={"message": "what is the price for cleaning?"})
     assert resp.json()["confidence"] >= 0.88
 
 
 def test_fallback_returns_suggestions() -> None:
     """Gibberish message with fallback intent includes a non-empty suggestions list."""
-    client = TestClient(app)
+def test_fallback_returns_suggestions(client):
     resp = client.post("/chat", json={"message": "zzz bloop quux"})
     body = resp.json()
     assert body["intent"] == "fallback"
@@ -339,7 +329,7 @@ def test_fallback_returns_suggestions() -> None:
 
 def test_reminder_after_confirmed_appointment() -> None:
     """Reminder endpoint returns patient details after appointment confirmation."""
-    client = TestClient(app)
+def test_reminder_after_confirmed_appointment(client):
     r1 = client.post("/chat", json={"message": "hi, my name is Alice"})
     sid = r1.json()["session_id"]
     client.post("/chat", json={"message": "book appointment", "session_id": sid})
@@ -356,7 +346,7 @@ def test_reminder_after_confirmed_appointment() -> None:
 
 def test_reminder_404_without_appointment() -> None:
     """Reminder returns 404 when no appointment has been confirmed."""
-    client = TestClient(app)
+def test_reminder_404_without_appointment(client):
     r = client.post("/chat", json={"message": "hello"})
     sid = r.json()["session_id"]
     resp = client.get(f"/remind/{sid}")
@@ -365,7 +355,7 @@ def test_reminder_404_without_appointment() -> None:
 
 def test_session_summary_tracks_symptoms() -> None:
     """Session summary endpoint correctly accumulates detected symptoms."""
-    client = TestClient(app)
+def test_session_summary_tracks_symptoms(client):
     r = client.post("/chat", json={"message": "I have tooth pain and bleeding gums"})
     sid = r.json()["session_id"]
 
@@ -379,7 +369,7 @@ def test_session_summary_tracks_symptoms() -> None:
 
 def test_session_summary_includes_intent_and_confidence() -> None:
     """Session summary includes last intent and confidence score."""
-    client = TestClient(app)
+def test_session_summary_includes_intent_and_confidence(client):
     r = client.post("/chat", json={"message": "what are your hours?"})
     sid = r.json()["session_id"]
 
@@ -392,7 +382,7 @@ def test_session_summary_includes_intent_and_confidence() -> None:
 
 def test_cors_header_present_on_health() -> None:
     """CORS allow-origin header is returned when Origin header is sent."""
-    client = TestClient(app)
+def test_cors_header_present_on_health(client):
     resp = client.get("/health", headers={"Origin": "http://localhost:3000"})
     assert resp.status_code == 200
     assert "access-control-allow-origin" in resp.headers
@@ -400,7 +390,7 @@ def test_cors_header_present_on_health() -> None:
 
 def test_contact_extraction_saved_to_session_summary() -> None:
     """Email shared in chat is extracted and visible in session summary contact field."""
-    client = TestClient(app)
+def test_contact_extraction_saved_to_session_summary(client):
     r = client.post("/chat", json={"message": "my email is patient@example.com"})
     sid = r.json()["session_id"]
 
@@ -413,7 +403,7 @@ def test_contact_extraction_saved_to_session_summary() -> None:
 
 def test_admin_lead_detail_returns_lead() -> None:
     """GET /admin/leads/{id} returns a lead record with expected fields."""
-    client = TestClient(app)
+def test_admin_lead_detail_returns_lead(client):
     # Create a lead via chat
     r = client.post("/chat", json={"message": "I need a cleaning"})
     assert r.status_code == 200
@@ -435,7 +425,7 @@ def test_admin_lead_detail_returns_lead() -> None:
 
 def test_admin_lead_detail_404_unknown() -> None:
     """GET /admin/leads/{id} returns 404 for non-existent lead."""
-    client = TestClient(app)
+def test_admin_lead_detail_404_unknown(client):
     resp = client.get("/admin/leads/999999", headers=ADMIN)
     assert resp.status_code == 404
     assert resp.json()["detail"] == "lead not found"
@@ -443,7 +433,7 @@ def test_admin_lead_detail_404_unknown() -> None:
 
 def test_admin_appointment_detail_returns_appointment() -> None:
     """GET /admin/appointments/{id} returns an appointment record with expected fields."""
-    client = TestClient(app)
+def test_admin_appointment_detail_returns_appointment(client):
     # Trigger appointment creation
     r1 = client.post("/chat", json={"message": "book appointment"})
     sid = r1.json()["session_id"]
@@ -468,7 +458,7 @@ def test_admin_appointment_detail_returns_appointment() -> None:
 
 def test_admin_appointment_detail_404_unknown() -> None:
     """GET /admin/appointments/{id} returns 404 for non-existent appointment."""
-    client = TestClient(app)
+def test_admin_appointment_detail_404_unknown(client):
     resp = client.get("/admin/appointments/999999", headers=ADMIN)
     assert resp.status_code == 404
     assert resp.json()["detail"] == "appointment not found"
@@ -476,7 +466,7 @@ def test_admin_appointment_detail_404_unknown() -> None:
 
 def test_admin_active_sessions_endpoint_lists_recent_session() -> None:
     """Admin active sessions endpoint includes session details and message counts."""
-    client = TestClient(app)
+def test_admin_active_sessions_endpoint_lists_recent_session(client):
     r = client.post("/chat", json={"message": "hello from active session endpoint"})
     sid = r.json()["session_id"]
 
@@ -490,7 +480,7 @@ def test_admin_active_sessions_endpoint_lists_recent_session() -> None:
 
 def test_session_cleanup_dry_run_does_not_remove_session() -> None:
     """dry_run cleanup reports candidates without deleting in-memory session data."""
-    client = TestClient(app)
+def test_session_cleanup_dry_run_does_not_remove_session(client):
     r = client.post("/chat", json={"message": "hello dry run cleanup"})
     sid = r.json()["session_id"]
 
@@ -513,8 +503,7 @@ def test_session_cleanup_dry_run_does_not_remove_session() -> None:
         api_module.session_mgr.default_ttl = original_ttl
 
 
-def test_admin_leads_export_csv() -> None:
-    client = TestClient(app)
+def test_admin_leads_export_csv(client):
     # Seed at least one lead
     client.post("/chat", json={"message": "hello export test"})
 
@@ -530,8 +519,7 @@ def test_admin_leads_export_csv() -> None:
     assert len(lines) >= 2  # header + at least one row
 
 
-def test_admin_appointments_export_csv() -> None:
-    client = TestClient(app)
+def test_admin_appointments_export_csv(client):
     # Seed an appointment
     r = client.post("/chat", json={"message": "book appointment"})
     sid = r.json()["session_id"]
@@ -549,8 +537,7 @@ def test_admin_appointments_export_csv() -> None:
     assert len(lines) >= 2
 
 
-def test_admin_stats_returns_accurate_counts() -> None:
-    client = TestClient(app)
+def test_admin_stats_returns_accurate_counts(client):
     stats_before = client.get("/admin/stats", headers=ADMIN)
     assert stats_before.status_code == 200
     body_before = stats_before.json()
@@ -564,14 +551,12 @@ def test_admin_stats_returns_accurate_counts() -> None:
     assert body_after["total_leads"] >= body_before["total_leads"] + 1
 
 
-def test_csv_export_requires_admin_token() -> None:
-    client = TestClient(app)
+def test_csv_export_requires_admin_token(client):
     assert client.get("/admin/leads/export").status_code == 401
     assert client.get("/admin/appointments/export").status_code == 401
 
 
-def test_admin_stats_breakdown_endpoint() -> None:
-    client = TestClient(app)
+def test_admin_stats_breakdown_endpoint(client):
 
     # Seed data for both grouped dimensions
     client.post("/chat", json={"message": "hello breakdown stats"})
@@ -590,25 +575,21 @@ def test_admin_stats_breakdown_endpoint() -> None:
     assert "generated_at" in body
 
 
-def test_admin_stats_breakdown_requires_admin_token() -> None:
-    client = TestClient(app)
+def test_admin_stats_breakdown_requires_admin_token(client):
     assert client.get("/admin/stats/breakdown").status_code == 401
 
 
-def test_admin_list_limit_validation() -> None:
-    client = TestClient(app)
+def test_admin_list_limit_validation(client):
     assert client.get("/admin/leads?limit=0", headers=ADMIN).status_code == 422
     assert client.get("/admin/appointments?offset=-1", headers=ADMIN).status_code == 422
 
 
-def test_admin_export_limit_validation() -> None:
-    client = TestClient(app)
+def test_admin_export_limit_validation(client):
     assert client.get("/admin/leads/export?limit=0", headers=ADMIN).status_code == 422
     assert client.get("/admin/appointments/export?limit=10001", headers=ADMIN).status_code == 422
 
 
-def test_admin_rate_limit_status_and_session_reset() -> None:
-    client = TestClient(app)
+def test_admin_rate_limit_status_and_session_reset(client):
 
     r = client.post("/chat", json={"message": "hello limiter"})
     sid = r.json()["session_id"]
@@ -638,8 +619,7 @@ def test_admin_rate_limit_status_and_session_reset() -> None:
     assert after_body["remaining"] == after_body["max_requests"]
 
 
-def test_admin_rate_limit_global_reset() -> None:
-    client = TestClient(app)
+def test_admin_rate_limit_global_reset(client):
 
     sid1 = client.post("/chat", json={"message": "limiter one"}).json()["session_id"]
     sid2 = client.post("/chat", json={"message": "limiter two"}).json()["session_id"]
@@ -659,14 +639,12 @@ def test_admin_rate_limit_global_reset() -> None:
     assert status_two.json()["used"] == 0
 
 
-def test_admin_rate_limit_endpoints_require_admin_token() -> None:
-    client = TestClient(app)
+def test_admin_rate_limit_endpoints_require_admin_token(client):
     assert client.get("/admin/rate-limit/some-session-id").status_code == 401
     assert client.post("/admin/rate-limit/reset", json={}).status_code == 401
 
 
-def test_admin_leads_trends_endpoint() -> None:
-    client = TestClient(app)
+def test_admin_leads_trends_endpoint(client):
 
     client.post("/chat", json={"message": "trend lead sample"})
 
@@ -681,8 +659,7 @@ def test_admin_leads_trends_endpoint() -> None:
     assert isinstance(body["series"][0]["count"], int)
 
 
-def test_admin_appointments_trends_endpoint() -> None:
-    client = TestClient(app)
+def test_admin_appointments_trends_endpoint(client):
 
     r = client.post("/chat", json={"message": "book appointment"})
     sid = r.json()["session_id"]
@@ -699,8 +676,7 @@ def test_admin_appointments_trends_endpoint() -> None:
     assert isinstance(body["series"][0]["count"], int)
 
 
-def test_admin_trends_auth_and_validation() -> None:
-    client = TestClient(app)
+def test_admin_trends_auth_and_validation(client):
 
     assert client.get("/admin/leads/trends").status_code == 401
     assert client.get("/admin/appointments/trends").status_code == 401
@@ -709,8 +685,7 @@ def test_admin_trends_auth_and_validation() -> None:
     assert client.get("/admin/appointments/trends?days=91", headers=ADMIN).status_code == 422
 
 
-def test_admin_data_cleanup_dry_run_reports_candidates_only() -> None:
-    client = TestClient(app)
+def test_admin_data_cleanup_dry_run_reports_candidates_only(client):
 
     old_lead = ChatLead(
         session_id="cleanup-dry-run-sid",
@@ -751,8 +726,7 @@ def test_admin_data_cleanup_dry_run_reports_candidates_only() -> None:
         assert db.get(Appointment, appt_id) is not None
 
 
-def test_admin_data_cleanup_deletes_old_records() -> None:
-    client = TestClient(app)
+def test_admin_data_cleanup_deletes_old_records(client):
 
     old_lead = ChatLead(
         session_id="cleanup-exec-sid",
@@ -791,8 +765,7 @@ def test_admin_data_cleanup_deletes_old_records() -> None:
         assert db.get(Appointment, appt_id) is None
 
 
-def test_admin_data_cleanup_requires_admin_and_valid_days() -> None:
-    client = TestClient(app)
+def test_admin_data_cleanup_requires_admin_and_valid_days(client):
     assert client.post("/admin/data/cleanup?days=365").status_code == 401
     assert client.post("/admin/data/cleanup?days=0", headers=ADMIN).status_code == 422
     assert client.post("/admin/data/cleanup?days=3651", headers=ADMIN).status_code == 422
