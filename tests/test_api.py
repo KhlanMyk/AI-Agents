@@ -1,3 +1,8 @@
+# --- May 3 improvement ---
+def test_health_content_type_json(client):
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/json")
 from datetime import timedelta
 import pytest
 from fastapi.testclient import TestClient
