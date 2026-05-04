@@ -1,3 +1,13 @@
+# --- May 4 improvement ---
+import time
+
+def test_health_response_time(client):
+    start = time.monotonic()
+    resp = client.get("/health")
+    elapsed = time.monotonic() - start
+    assert resp.status_code == 200
+    # Should respond in under 0.5 seconds (adjust as needed)
+    assert elapsed < 0.5, f"/health too slow: {elapsed:.3f}s"
 # --- May 3 improvement ---
 def test_health_content_type_json(client):
     resp = client.get("/health")
