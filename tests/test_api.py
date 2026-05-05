@@ -1,3 +1,11 @@
+# --- May 5 improvement ---
+def test_health_json_structure(client):
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, dict)
+    assert "status" in data
+    assert data["status"] == "ok"
 # --- May 4 improvement ---
 import time
 
