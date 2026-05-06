@@ -13,6 +13,7 @@ import io
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.agent import DentistAIAgent
@@ -45,7 +46,11 @@ from app.rate_limiter import RateLimiter
 from app.logging_config import get_logger, log_error
 from app.middleware import RequestMetricsMiddleware
 
+
 app = FastAPI(title="Dentist Assistant API", version="0.1.0")
+
+# Enable GZip compression for all responses larger than 500 bytes
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
