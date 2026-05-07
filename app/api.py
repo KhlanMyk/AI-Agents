@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Dict
@@ -46,18 +45,9 @@ from app.rate_limiter import RateLimiter
 from app.logging_config import get_logger, log_error
 from app.middleware import RequestMetricsMiddleware
 
-
-app = FastAPI(title="Dentist Assistant API", version="0.1.0")
-
-# Enable GZip compression for all responses larger than 500 bytes
-app.add_middleware(GZipMiddleware, minimum_size=500)
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 logger = get_logger(__name__)
 
-# Register middleware for request/response tracking
-app.add_middleware(RequestMetricsMiddleware)
+app = FastAPI(title="Dentist Assistant API", version="0.1.0")
 
 # CORS – allow configured origins so browser-based frontends can call the API
 app.add_middleware(
@@ -281,6 +271,17 @@ def reset(payload: ResetRequest) -> dict[str, str]:
     agent = get_agent(payload.session_id)
     agent.reset()
     return {"status": "reset"}
+
+
+@app.get("/time")
+def get_server_time() -> dict:
+    """
+    Returns the current server time in ISO 8601 format (UTC).
+
+    Useful for client-server time synchronisation and latency diagnostics.
+    Clients can compare this value with their local clock to detect drift.
+    """
+    return {"server_time": datetime.now(UTC).isoformat()}
 
 
 def _check_admin_token(x_admin_token: str | None) -> None:

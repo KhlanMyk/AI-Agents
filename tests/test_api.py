@@ -792,3 +792,15 @@ def test_admin_data_cleanup_requires_admin_and_valid_days(client):
     assert client.post("/admin/data/cleanup?days=365").status_code == 401
     assert client.post("/admin/data/cleanup?days=0", headers=ADMIN).status_code == 422
     assert client.post("/admin/data/cleanup?days=3651", headers=ADMIN).status_code == 422
+
+
+def test_get_server_time(client):
+    """GET /time returns current UTC time in ISO 8601 format."""
+    resp = client.get("/time")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "server_time" in body
+    # Must be a valid ISO 8601 datetime string
+    from datetime import datetime, timezone
+    dt = datetime.fromisoformat(body["server_time"])
+    assert dt.tzinfo is not None  # timezone-aware
