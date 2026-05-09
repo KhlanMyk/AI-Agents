@@ -57,6 +57,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Compress responses >= 1 KB to reduce bandwidth
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+# Track per-request metrics and attach X-Request-ID to every response
+app.add_middleware(RequestMetricsMiddleware)
 
 
 class ChatRequest(BaseModel):
